@@ -5,6 +5,8 @@ import (
 	"errors"
 
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const maxUploadBytes int64 = 100 * 1024 * 1024
@@ -58,6 +60,10 @@ type Event struct {
 	VideoID       string    `json:"video_id"`
 	JobID         string    `json:"job_id"`
 	CreatedAt     time.Time `json:"created_at"`
+}
+
+func newEvent(j Job) Event {
+	return Event{uuid.NewString(), "media.uploaded", 1, j.VideoID, j.ID, time.Now().UTC()}
 }
 
 // The row lock and partial unique index in Store.Enqueue make this decision atomic.

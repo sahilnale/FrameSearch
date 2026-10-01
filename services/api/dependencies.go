@@ -2,17 +2,18 @@ package main
 
 import (
 	"context"
-
+	"encoding/json"
 	"errors"
 
 	"net/http"
-
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/segmentio/kafka-go"
 )
 
 type S3Storage struct {
@@ -57,4 +58,42 @@ func (s *S3Storage) Head(ctx context.Context, key string) (ObjectInfo, error) {
 func (s *S3Storage) Ping(ctx context.Context) error {
 	_, e := s.internal.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(s.bucket)})
 	return e
+}
+
+type KafkaPublisher struct {
+	writer  *kafka.Writer
+	brokers []string
+	topic   string
+}
+
+func newPublisher(brokers, topic string) *KafkaPublisher {
+	list := strings.Split(brokers, ",")
+	return &KafkaPublisher{&kafka.Writer{Addr: kafka.TCP(list...), Topic: topic, Balancer: &kafka.Hash{}, RequiredAcks: kafka.RequireAll, Async: false, WriteTimeout: 10 * time.Second, ReadTimeout: 10 * time.Second, MaxAttempts: 3, BatchTimeout: 10 * time.Millisecond}, list, topic}
+}
+func (p *KafkaPublisher) Publish(ctx context.Context, event Event) error {
+	b, e := json.Marshal(event)
+	if e != nil {
+		return e
+	}
+	return p.writer.WriteMessages(ctx, kafka.Message{Key: []byte(event.VideoID), Value: b})
+}
+func (p *KafkaPublisher) Ping(ctx context.Context) error {
+	conn, e := (&kafka.Dialer{Timeout: 3 * time.Second}).DialContext(ctx, "tcp", p.brokers[0])
+	if e != nil {
+		return e
+	}
+	defer conn.Close()
+	deadline := time.Now().Add(3 * time.Second)
+	if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
+		deadline = d
+	}
+	conn.SetDeadline(deadline)
+	partitions, e := conn.ReadPartitions(p.topic)
+	if e != nil {
+		return e
+	}
+	if len(partitions) == 0 {
+		return errors.New("Kafka topic has no partitions")
+	}
+	return nil
 }
