@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math"
 
 	"time"
 
@@ -82,6 +84,25 @@ func enqueueDecision(status string, retry bool) (bool, error) {
 	default:
 		return false, errConflict
 	}
+}
+func validateEmbedding(v []float64, version string) error {
+	if version != modelVersion {
+		return fmt.Errorf("processor model_version does not match %s", modelVersion)
+	}
+	if len(v) != 512 {
+		return errors.New("processor must return 512 dimensions")
+	}
+	norm := 0.0
+	for _, x := range v {
+		if math.IsNaN(x) || math.IsInf(x, 0) {
+			return errors.New("embedding must contain finite numbers")
+		}
+		norm += x * x
+	}
+	if math.Abs(math.Sqrt(norm)-1) > 0.01 {
+		return errors.New("embedding must be L2 normalized")
+	}
+	return nil
 }
 
 type Repository interface {

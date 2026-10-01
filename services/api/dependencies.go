@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-
+	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -94,6 +96,56 @@ func (p *KafkaPublisher) Ping(ctx context.Context) error {
 	}
 	if len(partitions) == 0 {
 		return errors.New("Kafka topic has no partitions")
+	}
+	return nil
+}
+
+type ProcessorClient struct {
+	base   string
+	client *http.Client
+}
+
+func (p *ProcessorClient) Embed(ctx context.Context, text string) ([]float64, string, error) {
+	b, _ := json.Marshal(map[string]string{"text": text})
+	req, e := http.NewRequestWithContext(ctx, http.MethodPost, p.base+"/embed/text", bytes.NewReader(b))
+	if e != nil {
+		return nil, "", e
+	}
+	req.Header.Set("Content-Type", "application/json")
+	res, e := p.client.Do(req)
+	if e != nil {
+		return nil, "", e
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return nil, "", fmt.Errorf("processor HTTP %d", res.StatusCode)
+	}
+	var x struct {
+		Embedding    []float64 `json:"embedding"`
+		ModelVersion string    `json:"model_version"`
+	}
+	dec := json.NewDecoder(io.LimitReader(res.Body, 65537))
+	if e = dec.Decode(&x); e != nil {
+		return nil, "", e
+	}
+	var extra any
+	if e = dec.Decode(&extra); e != io.EOF {
+		return nil, "", errors.New("invalid processor JSON response")
+	}
+	return x.Embedding, x.ModelVersion, nil
+}
+func (p *ProcessorClient) Ping(ctx context.Context) error {
+	req, e := http.NewRequestWithContext(ctx, http.MethodGet, p.base+"/health/ready", nil)
+	if e != nil {
+		return e
+	}
+	res, e := p.client.Do(req)
+	if e != nil {
+		return e
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return fmt.Errorf("processor HTTP %d", res.StatusCode)
 	}
 	return nil
 }
