@@ -2,10 +2,41 @@ package main
 
 import (
 	"math"
-
+	"strings"
 	"testing"
 )
 
+func TestUploadValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name, filename, contentType string
+		size                        int64
+		valid                       bool
+	}{
+		{"minimum", "clip.mp4", "video/mp4", 1, true},
+		{"maximum", "clip.mp4", "video/mp4", maxUploadBytes, true},
+		{"unicode filename", "街景.mp4", "video/mp4", 123, true},
+		{"media proof deferred to processor", "not-an-extension", "video/mp4", 123, true},
+		{"zero size", "clip.mp4", "video/mp4", 0, false},
+		{"negative size", "clip.mp4", "video/mp4", -1, false},
+		{"oversize", "clip.mp4", "video/mp4", maxUploadBytes + 1, false},
+		{"wrong type", "clip.mp4", "image/png", 123, false},
+		{"empty filename", "", "video/mp4", 123, false},
+		{"blank filename", "  ", "video/mp4", 123, false},
+		{"parent path", "../clip.mp4", "video/mp4", 123, false},
+		{"windows path", `C:\clip.mp4`, "video/mp4", 123, false},
+		{"control character", "clip\n.mp4", "video/mp4", 123, false},
+		{"long filename", strings.Repeat("a", 256), "video/mp4", 123, false},
+		{"dot", ".", "video/mp4", 123, false},
+		{"parent dot", "..", "video/mp4", 123, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := (UploadRequest{tc.filename, tc.contentType, tc.size}).validate()
+			if (e == nil) != tc.valid {
+				t.Fatalf("valid=%v error=%v", tc.valid, e)
+			}
+		})
+	}
+}
 func ptr[T any](x T) *T { return &x }
 
 func unitVector() []float64 { x := make([]float64, 512); x[0] = 1; return x }

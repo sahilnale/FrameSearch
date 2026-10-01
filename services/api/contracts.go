@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"math"
-
+	"path/filepath"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
@@ -34,6 +37,24 @@ type UploadRequest struct {
 	Filename    string `json:"filename"`
 	ContentType string `json:"content_type"`
 	Size        int64  `json:"size_bytes"`
+}
+
+func (r UploadRequest) validate() error {
+	if r.Filename == "." || r.Filename == ".." || strings.TrimSpace(r.Filename) == "" || utf8.RuneCountInString(r.Filename) > 255 || filepath.Base(r.Filename) != r.Filename || strings.ContainsAny(r.Filename, "/\\") {
+		return errors.New("filename must be a nonempty basename of at most 255 characters")
+	}
+	for _, c := range r.Filename {
+		if unicode.IsControl(c) {
+			return errors.New("filename contains control characters")
+		}
+	}
+	if r.ContentType != "video/mp4" {
+		return errors.New("content_type must be video/mp4")
+	}
+	if r.Size < 1 || r.Size > maxUploadBytes {
+		return errors.New("size_bytes must be between 1 and 104857600")
+	}
+	return nil
 }
 
 type SearchRequest struct {
