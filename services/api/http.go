@@ -146,6 +146,8 @@ func (a *API) Handler() http.Handler {
 	})
 	r.Get("/health/ready", a.ready)
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Get("/videos", a.list)
+		r.Get("/videos/{id}", a.detail)
 	})
 	return r
 }
@@ -186,4 +188,28 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonResponse(w, status, map[string]any{"status": "ready", "dependencies": deps})
+}
+
+func (a *API) list(w http.ResponseWriter, r *http.Request) {
+	vs, e := a.repo.List(r.Context())
+	if e != nil {
+		internalError(w, e)
+		return
+	}
+	if vs == nil {
+		vs = []Video{}
+	}
+	jsonResponse(w, 200, map[string]any{"videos": vs})
+}
+func (a *API) detail(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	v, e := a.repo.Get(r.Context(), id)
+	if e != nil {
+		internalError(w, e)
+		return
+	}
+	jsonResponse(w, 200, v)
 }

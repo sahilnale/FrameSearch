@@ -161,6 +161,32 @@ func assertError(t *testing.T, w *httptest.ResponseRecorder, status int, code st
 	}
 }
 
+func TestVideoJSONAndPlayback(t *testing.T) {
+	a, repo, _, _, _ := fixture()
+	h := a.Handler()
+	base := "/api/v1/videos/" + repo.video.ID
+	w := request(h, "GET", base, "")
+	if w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	out := decodeObject(t, w)
+	if len(out) != 6 || string(out["duration_seconds"]) != "null" || string(out["processing_error"]) != "null" {
+		t.Fatalf("wrong video fields: %s", w.Body.String())
+	}
+	for _, field := range []string{"id", "filename", "status", "duration_seconds", "processing_error", "created_at"} {
+		if _, ok := out[field]; !ok {
+			t.Fatalf("missing %s", field)
+		}
+	}
+	repo.video = Video{}
+	w = request(h, "GET", "/api/v1/videos", "")
+	out = decodeObject(t, w)
+	if string(out["videos"]) != "[]" {
+		t.Fatal("empty list must be array")
+	}
+	assertError(t, request(h, "GET", base, ""), 404, "not_found")
+}
+
 func TestHealthCORSAndErrors(t *testing.T) {
 	a, repo, _, _, _ := fixture()
 	h := a.Handler()
@@ -173,6 +199,7 @@ func TestHealthCORSAndErrors(t *testing.T) {
 	repo.readiness = errors.New("database unavailable")
 	assertError(t, request(h, "GET", "/health/ready", ""), 503, "not_ready")
 	assertError(t, request(h, "GET", "/no-such-route", ""), 404, "not_found")
+	assertError(t, request(h, "DELETE", "/api/v1/videos", ""), 405, "method_not_allowed")
 	for _, origin := range []string{"http://localhost:3000", "http://elsewhere.invalid"} {
 		req := httptest.NewRequest("OPTIONS", "/api/v1/search", nil)
 		req.Header.Set("Origin", origin)
