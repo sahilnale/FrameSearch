@@ -150,6 +150,7 @@ func (a *API) Handler() http.Handler {
 		r.Get("/videos", a.list)
 		r.Get("/videos/{id}", a.detail)
 		r.Post("/videos/{id}/complete", a.complete)
+		r.Post("/videos/{id}/retry", a.retry)
 	})
 	return r
 }
@@ -238,7 +239,7 @@ func (a *API) detail(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, 200, v)
 }
 func (a *API) complete(w http.ResponseWriter, r *http.Request) { a.enqueue(w, r, false) }
-
+func (a *API) retry(w http.ResponseWriter, r *http.Request)    { a.enqueue(w, r, true) }
 func (a *API) enqueue(w http.ResponseWriter, r *http.Request, retry bool) {
 	id, ok := pathID(w, r)
 	if !ok {
