@@ -151,6 +151,7 @@ func (a *API) Handler() http.Handler {
 		r.Get("/videos/{id}", a.detail)
 		r.Post("/videos/{id}/complete", a.complete)
 		r.Post("/videos/{id}/retry", a.retry)
+		r.Get("/videos/{id}/playback-url", a.playback)
 	})
 	return r
 }
@@ -283,4 +284,25 @@ func (a *API) enqueue(w http.ResponseWriter, r *http.Request, retry bool) {
 		}
 	}
 	jsonResponse(w, 200, map[string]string{"video_id": id, "status": v.Status})
+}
+func (a *API) playback(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	v, e := a.repo.Get(r.Context(), id)
+	if e != nil {
+		internalError(w, e)
+		return
+	}
+	if v.Status != "ready" {
+		internalError(w, errConflict)
+		return
+	}
+	url, e := a.storage.GetURL(r.Context(), v.ObjectKey)
+	if e != nil {
+		internalError(w, e)
+		return
+	}
+	jsonResponse(w, 200, map[string]any{"url": url, "expires_in_seconds": 900})
 }
