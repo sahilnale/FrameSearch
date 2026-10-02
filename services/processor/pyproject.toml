@@ -1,0 +1,39 @@
+[project]
+name = "framesearch-processor"
+version = "0.1.0"
+description = "FrameSearch's internal OpenCLIP embedding and video indexing service"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "open-clip-torch==3.3.0",
+    "torch==2.10.0",
+    "torchvision==0.25.0",
+    "pillow==12.1.1",
+]
+
+[dependency-groups]
+dev = ["pytest==8.4.2", "ruff==0.15.5"]
+
+[tool.uv]
+package = false
+
+# Linux uses CPU wheels rather than downloading CUDA dependencies. macOS uses PyPI.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = ["real_model: loads the real checkpoint; enable with FRAMESEARCH_REAL_MODEL_TEST=1"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
