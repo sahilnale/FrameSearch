@@ -184,7 +184,32 @@ func TestUploadHTTP(t *testing.T) {
 		t.Fatalf("wrong saved state: %+v", repo.video)
 	}
 }
-
+func TestInvalidJSON(t *testing.T) {
+	a, _, _, _, _ := fixture()
+	for _, body := range []string{`{`, `[]`, `null`, `{"query":"car","unknown":1}`, `{"query":"car"} {}`, `{"query":"car","limit":1.5}`, `{"query":"car","query":"different"}`, `{"query":"car"}` + strings.Repeat(" ", 17000)} {
+		t.Run(body[:min(len(body), 70)], func(t *testing.T) {
+			assertError(t, request(a.Handler(), "POST", "/api/v1/search", body), 400, "invalid_json")
+		})
+	}
+	req := httptest.NewRequest("POST", "/api/v1/search", strings.NewReader(`{"query":"car"}`))
+	w := httptest.NewRecorder()
+	a.Handler().ServeHTTP(w, req)
+	assertError(t, w, 415, "unsupported_media_type")
+}
+func TestHTTPValidation(t *testing.T) {
+	a, _, _, _, _ := fixture()
+	for _, tc := range []struct{ path, body, code string }{
+		{"/api/v1/search", `{"query":"car","limit":0}`, "invalid_search"},
+		{"/api/v1/search", `{"query":"car","limit":31}`, "invalid_search"},
+		{"/api/v1/search", `{"query":" "}`, "invalid_search"},
+		{"/api/v1/search", `{"query":"car","video_id":"invalid"}`, "invalid_search"},
+		{"/api/v1/videos/upload-url", `{"filename":"../clip.mp4","content_type":"video/mp4","size_bytes":1}`, "invalid_upload"},
+		{"/api/v1/videos/upload-url", `{"filename":"clip.mp4","content_type":"video/mp4","size_bytes":104857601}`, "invalid_upload"},
+	} {
+		assertError(t, request(a.Handler(), "POST", tc.path, tc.body), 400, tc.code)
+	}
+	assertError(t, request(a.Handler(), "POST", "/api/v1/videos/bad/complete", ""), 400, "invalid_id")
+}
 func TestCompleteIdempotency(t *testing.T) {
 	a, repo, storage, pub, _ := fixture()
 	path := "/api/v1/videos/" + repo.video.ID + "/complete"
@@ -337,7 +362,34 @@ func TestVideoJSONAndPlayback(t *testing.T) {
 	}
 	assertError(t, request(h, "GET", base, ""), 404, "not_found")
 }
-
+func TestSearchHTTP(t *testing.T) {
+	a, repo, _, _, embed := fixture()
+	h := a.Handler()
+	path := "/api/v1/search"
+	w := request(h, "POST", path, `{"query":" car "}`)
+	if w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	out := decodeObject(t, w)
+	if string(out["query"]) != `"car"` || string(out["results"]) != "[]" {
+		t.Fatal(w.Body.String())
+	}
+	repo.results = []SearchResult{{VideoID: repo.video.ID, FrameID: uuid.NewString(), Filename: "clip.mp4", Timestamp: 3000, ThumbnailKey: "frames/test.jpg", Similarity: 0.32}}
+	w = request(h, "POST", path, `{"query":"car"}`)
+	out = decodeObject(t, w)
+	var results []map[string]any
+	json.Unmarshal(out["results"], &results)
+	if len(results) != 1 || len(results[0]) != 6 || results[0]["similarity"] != 0.32 || results[0]["timestamp_ms"] != float64(3000) || !strings.HasPrefix(results[0]["thumbnail_url"].(string), "http://localhost:9000/") {
+		t.Fatal(w.Body.String())
+	}
+	embed.version = "wrong"
+	assertError(t, request(h, "POST", path, `{"query":"car"}`), 502, "invalid_embedding")
+	embed.version = modelVersion
+	embed.vec = []float64{1}
+	assertError(t, request(h, "POST", path, `{"query":"car"}`), 502, "invalid_embedding")
+	embed.err = errors.New("timeout")
+	assertError(t, request(h, "POST", path, `{"query":"car"}`), 502, "processor_unavailable")
+}
 func TestHealthCORSAndErrors(t *testing.T) {
 	a, repo, _, _, _ := fixture()
 	h := a.Handler()
