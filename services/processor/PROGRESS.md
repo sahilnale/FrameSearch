@@ -8,8 +8,8 @@ Each feature gets a separate commit after its focused checks.
 | Feature | Status | Verification |
 | --- | --- | --- |
 | Pinned CPU OpenCLIP model, text/image embeddings | Implemented, verified, pushed | Core commit `500fc9d`; 22 unit tests and real CPU inference pass |
-| Internal text HTTP endpoint and readiness | Implemented, verified | 38 unit tests pass; real HTTP test passes |
-| Processor container packaging | In progress | Docker daemon available; build pending |
+| Internal text HTTP endpoint and readiness | Implemented, verified, pushed | Commit `de4cb2a`; 38 unit tests and real HTTP test pass |
+| Processor container packaging | Implemented, verified | Linux ARM64 build and live real HTTP check pass |
 | FFprobe validation and timestamped FFmpeg sampling | Planned | Not run |
 | Kafka, MinIO, pgvector indexing and recovery | Planned | Not run |
 | Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
@@ -43,3 +43,28 @@ Only successfully executed checks will be marked verified here.
 - `FRAMESEARCH_REAL_MODEL_TEST=1 HF_HUB_OFFLINE=1 python -m pytest -q -m real_model
   tests/test_real_http.py`: passed using genuine cached weights (3.94 seconds).
 - No Kafka/MinIO/PostgreSQL services have been exercised at this milestone.
+
+## Container packaging checks
+
+- First build failed fetching the ghcr.io uv image with a registry timeout.
+  Packaging now installs the same pinned uv 0.6.3 from PyPI instead.
+- `docker build -t framesearch-processor:embedding-checkpoint services/processor`:
+  passed on Docker Desktop Linux ARM64, Python 3.12.15, torch 2.10.0+cpu.
+- Started the actual single-process server on loopback port 18000, with real
+  cached weights mounted read-only and HF_HUB_OFFLINE=1. Model warmup succeeded.
+- `PYTHONPATH=. python tests/check_service.py --url http://127.0.0.1:18000`:
+  passed with network sandbox escalation; verifies liveness, readiness, fixed
+  model version, and real normalized finite 512-dimensional text response.
+- Container runs as UID/GID 10001; FFprobe 7.1.5 available.
+- One `docker stats` snapshot after text inference: 1.462 GiB used. This does not
+  measure peak indexing/startup RAM or the complete application's memory usage.
+- Test container is stopped after verification; checkpoint cache stays on host.
+- Dockerfile does not contain weights; Compose should persist `/cache` and keep
+  port 8000 internal. No infrastructure files changed.
+
+## Next checkpoint
+
+FFprobe metadata validation and accurate timestamped FFmpeg sampling, with tests
+for invalid media, duration/file limits, sampling at 3-second intervals and the
+60-frame cap. Kafka, storage and transactional database indexing follow as their
+own feature commits. Full end-to-end functionality is not yet implemented.

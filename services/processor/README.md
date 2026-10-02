@@ -98,6 +98,46 @@ The HTTP/lifecycle unit tests use doubles only in test files to verify failures
 and blocking behavior. The real-model tests exercise actual OpenCLIP text/image
 inference and the HTTP endpoint. Application code has no fake embedding mode.
 
+## Container packaging
+
+From the repository root:
+
+```sh
+docker build -t framesearch-processor services/processor
+docker run --rm --name framesearch-processor \
+  -p 127.0.0.1:8000:8000 \
+  -v framesearch-model-cache:/cache \
+  framesearch-processor
+```
+
+The image installs Python 3.12, pinned uv 0.6.3, locked CPU dependencies, and
+FFmpeg/FFprobe. It runs one HTTP process as UID 10001, with a writable model cache
+at `/cache/openclip`. The uv installer uses PyPI, avoiding another required image
+registry. The model is downloaded at runtime rather than bundled in the image.
+The actual downloaded checkpoint cache currently occupies approximately 577 MiB
+on the host development machine.
+
+Linux ARM64 image build and live HTTP verification passed using the genuine
+cached checkpoint. One Docker memory snapshot after text inference was 1.462 GiB
+for this processor. This is not a peak-memory or complete-stack measurement.
+
+Developer 1 can use `services/processor` as the Compose build context, keep port
+8000 internal, mount a persistent volume at `/cache`, and probe `/health/ready`.
+Allow time for the initial model download. The standalone loopback port above is
+only for local verification. This milestone's readiness checks the embedding
+model; Kafka consumption and indexing are not implemented yet.
+
+Verify a running local service over an actual HTTP socket:
+
+```sh
+cd services/processor
+PYTHONPATH=. uv run --frozen python tests/check_service.py --url http://localhost:8000
+```
+
+This checks the model version, readiness, liveness, and genuine finite normalized
+512-dimensional text response. It does not claim video indexing or semantic
+retrieval is complete.
+
 ## Integration notes for Developer 1
 
 The frozen model version is unchanged. No Go, schema, infrastructure, shared docs,
