@@ -1,8 +1,9 @@
 # FrameSearch processor
 
 Developer 2's processor implementation, following master specification section 13.
-This checkpoint contains the real CPU OpenCLIP embedding core. Video decoding,
-Kafka consumption, storage, and database transitions are subsequent features.
+This checkpoint contains the real CPU OpenCLIP embedding core and internal text
+HTTP service. Video decoding, Kafka consumption, storage, and database transitions
+are subsequent features.
 
 ## Install and test the embedding core
 
@@ -11,9 +12,10 @@ Use Python 3.12 and uv 0.6.3 (the version used to generate `uv.lock`):
 ```sh
 cd services/processor
 uv sync --frozen
-uv run --frozen pytest tests/test_settings.py tests/test_embeddings.py
-FRAMESEARCH_REAL_MODEL_TEST=1 uv run --frozen pytest -v tests/test_embeddings.py
-uv run --frozen ruff check framesearch_processor/settings.py framesearch_processor/embeddings.py tests/test_settings.py tests/test_embeddings.py
+uv run --frozen pytest
+FRAMESEARCH_REAL_MODEL_TEST=1 uv run --frozen pytest -v -m real_model
+uv run --frozen ruff check framesearch_processor tests
+uv run --frozen ruff format --check framesearch_processor tests
 ```
 
 Normal tests do not download weights. The explicit real-model test downloads the
@@ -21,6 +23,11 @@ genuine pretrained checkpoint on first run and tests actual text and image
 inference. It is not a semantic accuracy measurement. Cache files persist under
 `services/processor/.cache/openclip` by default; leave them in place for future
 runs. Download time and hardware requirements will be recorded when measured.
+
+The initial real CPU text/image test passed after a first checkpoint download in
+389.91 seconds on this Apple Silicon development machine; that includes the
+download and test work, not inference latency. The subsequent real HTTP test uses
+the same cached weights. Network speed and machine resources affect first startup.
 
 OpenCLIP `3.3.0`, PyTorch `2.10.0`, and torchvision `0.25.0` are pinned.
 Linux resolves torch/torchvision from the official CPU wheel index, avoiding CUDA
@@ -52,9 +59,48 @@ Image encoding accepts 1–60 real image paths. Each file is closed after
 preprocessing, and one shared lock serializes image/text inference. The lock is
 released between image batches so text inference can run during indexing.
 
+## Run the internal text service
+
+```sh
+cd services/processor
+uv run --frozen uvicorn framesearch_processor.app:app --host 127.0.0.1 --port 8000 --workers 1
+```
+
+Use exactly one Uvicorn worker so that the model loads once per service process.
+Startup downloads and validates the genuine model in a background thread.
+`GET /health/live` returns 200 while weights load; `GET /health/ready` returns 503
+until a real warmup text inference succeeds. Model loading failure keeps readiness
+at 503 and logs the cause. Restart the process after fixing a download/cache error.
+One HTTP inference runs at a time, off the event loop, using the same model and
+lock as image inference.
+
+```sh
+curl --fail http://localhost:8000/health/ready
+curl --fail http://localhost:8000/embed/text \
+  -H 'Content-Type: application/json' \
+  --data '{"text":"a car on a rainy street at night"}'
+```
+
+The embedding response is `{ "embedding": number[512], "model_version": string }`.
+The `text` field must be a string containing 1–500 Unicode characters after
+trimming whitespace. Invalid JSON/requests return 422, unavailable model 503,
+and inference failures 500, all with `{ "error": { "code", "message" } }`.
+This endpoint is for Go-to-processor calls. It has no authentication; keep it
+inside the Compose network and use loopback binding for standalone local tests.
+
+Once weights are cached, verification can explicitly avoid another download:
+
+```sh
+FRAMESEARCH_REAL_MODEL_TEST=1 HF_HUB_OFFLINE=1 uv run --frozen pytest -v -m real_model
+```
+
+The HTTP/lifecycle unit tests use doubles only in test files to verify failures
+and blocking behavior. The real-model tests exercise actual OpenCLIP text/image
+inference and the HTTP endpoint. Application code has no fake embedding mode.
+
 ## Integration notes for Developer 1
 
 The frozen model version is unchanged. No Go, schema, infrastructure, shared docs,
-or environment files are modified by this work. The next checkpoint provides the
-internal HTTP server on `0.0.0.0:8000`; indexing and its integrations come after it.
+or environment files are modified by this work. The internal HTTP server can
+listen on `0.0.0.0:8000` within Compose; indexing and its integrations come after it.
 The intended deployment uses exactly one Python process and one worker replica.

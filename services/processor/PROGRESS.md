@@ -7,8 +7,9 @@ Each feature gets a separate commit after its focused checks.
 
 | Feature | Status | Verification |
 | --- | --- | --- |
-| Pinned CPU OpenCLIP model, text/image embeddings | Implemented, unit verified | 22 unit tests pass; real checkpoint test running |
-| Internal text HTTP endpoint and readiness | In progress | Tests pending |
+| Pinned CPU OpenCLIP model, text/image embeddings | Implemented, verified, pushed | Core commit `500fc9d`; 22 unit tests and real CPU inference pass |
+| Internal text HTTP endpoint and readiness | Implemented, verified | 38 unit tests pass; real HTTP test passes |
+| Processor container packaging | In progress | Docker daemon available; build pending |
 | FFprobe validation and timestamped FFmpeg sampling | Planned | Not run |
 | Kafka, MinIO, pgvector indexing and recovery | Planned | Not run |
 | Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
@@ -24,8 +25,21 @@ Only successfully executed checks will be marked verified here.
 - Ruff checks and formatting of core modules/tests: passed.
 - `uv lock --check --offline`: passed.
 - The explicit real-model test initially failed at Hugging Face DNS resolution
-  under the network sandbox. Retried with approved network access; actual
-  checkpoint download/inference verification is still in progress.
+  under the network sandbox. Retried with approved network access: **passed**
+  (389.91 seconds including first download). Actual text and image embeddings
+  across three batches are finite, 512-dimensional and L2 normalized.
 - Read the latest migration and database/upload guide at `1028604`. The 512-vector
   model contract, frame uniqueness, video-first lock order, and active-job index
   match the planned processor. No schema changes proposed or applied.
+
+## Internal HTTP feature checks
+
+- `python -m pytest -q`: 38 passed, two opt-in real-model tests skipped (2.52 seconds).
+- Validated exact HTTP response, query trimming, Unicode character length,
+  malformed JSON, model readiness/failure, and inference failure responses.
+- Confirmed health requests finish while loading and while inference is blocked
+  in a background thread; confirmed one model initialization per lifespan.
+- Ruff checks: passed.
+- `FRAMESEARCH_REAL_MODEL_TEST=1 HF_HUB_OFFLINE=1 python -m pytest -q -m real_model
+  tests/test_real_http.py`: passed using genuine cached weights (3.94 seconds).
+- No Kafka/MinIO/PostgreSQL services have been exercised at this milestone.
