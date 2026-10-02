@@ -149,6 +149,7 @@ func (a *API) Handler() http.Handler {
 		r.Post("/videos/upload-url", a.upload)
 		r.Get("/videos", a.list)
 		r.Get("/videos/{id}", a.detail)
+		r.Post("/videos/{id}/complete", a.complete)
 	})
 	return r
 }
@@ -235,4 +236,50 @@ func (a *API) detail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonResponse(w, 200, v)
+}
+func (a *API) complete(w http.ResponseWriter, r *http.Request) { a.enqueue(w, r, false) }
+
+func (a *API) enqueue(w http.ResponseWriter, r *http.Request, retry bool) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	v, e := a.repo.Get(r.Context(), id)
+	if e != nil {
+		internalError(w, e)
+		return
+	}
+	create, e := enqueueDecision(v.Status, retry)
+	if e != nil {
+		internalError(w, e)
+		return
+	}
+	if create {
+		info, e := a.storage.Head(r.Context(), v.ObjectKey)
+		if e != nil {
+			if errors.Is(e, errObjectMissing) {
+				apiError(w, 409, "upload_missing", "upload the video object before completing")
+			} else {
+				internalError(w, e)
+			}
+			return
+		}
+		if info.Size != v.Size || info.ContentType != v.ContentType {
+			apiError(w, 409, "upload_mismatch", "uploaded object size or Content-Type differs from upload declaration")
+			return
+		}
+	}
+	v, job, e := a.repo.Enqueue(r.Context(), id, retry)
+	if e != nil {
+		internalError(w, e)
+		return
+	}
+	if job != nil {
+		if e = a.publisher.Publish(r.Context(), newEvent(*job)); e != nil {
+			slog.Error("Kafka publish failed; job remains queued", "job_id", job.ID, "error", e)
+			apiError(w, 503, "queued_publish_failed", "job was saved but publication failed; run make reconcile")
+			return
+		}
+	}
+	jsonResponse(w, 200, map[string]string{"video_id": id, "status": v.Status})
 }
