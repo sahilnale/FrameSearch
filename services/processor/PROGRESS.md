@@ -20,8 +20,8 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | PostgreSQL connection/configuration and schema check | Implemented, verified, pushed | Commit `87cf40e`; 22 focused checks pass, including seven actual PostgreSQL checks and fifteen configuration checks |
 | Atomic PostgreSQL job claiming | Implemented, verified, pushed | Commit `aa9a6a5`; 56 focused checks pass, including concurrent claims, lock order, duplicate handling, and rollback |
 | Idempotent frame upserts | Implemented, verified, pushed | Commit `c6bc88b`; 100 focused checks pass, including real MinIO/FFmpeg/CLIP-to-pgvector persistence and retry checks |
-| Transactional ready/completed states | Implemented, verified | 133 focused checks pass, including missing frame rejection and rollback of both states/duration/pruning |
-| Transactional failed states | Planned | Not run |
+| Transactional ready/completed states | Implemented, verified, pushed | Commit `a6b8913`; 133 focused checks pass, including missing frame rejection and rollback of both states/duration/pruning |
+| Transactional failed states | Implemented, verified | 151 focused checks pass, including failure rollback, retry completion, and protection of newer jobs |
 | Kafka consumption, bounded retries and recovery | Planned | Not run |
 | Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
 
@@ -274,9 +274,27 @@ Only successfully executed checks will be marked verified here.
 - This feature is not wired into an ingestion worker yet. Failure recording and
   Kafka offsets remain subsequent checkpoints.
 
+## Terminal job failure checkpoint
+
+- Added `Database.fail_job` separately from success handling. Validates a bounded
+  actionable reason and the current claim, then commits both failed statuses,
+  error fields, and timestamps together. Preserves partial rows for retry; Go's
+  ready-only search keeps them hidden. No automatic retries or Kafka commits yet.
+- Added 18 checks: five reason input guards and 13 real PostgreSQL checks. Covers
+  partial/no frames, trimmed reasons, Unicode character bounds, wrong/stale/queued/
+  completed claims, both update failures/suppression, and an actual failed-to-new-
+  retry-to-ready database flow with stable frame IDs and intact failure history.
+- Live database/configuration suite: **151 passed, no skips** (6.17 seconds),
+  including the real MinIO/FFmpeg/OpenCLIP persistence regression. Built production
+  and test images; packaged upserts/completion/failure passed as UID 10001 with
+  no application source mount. Host: **211 passed, 115 skipped** (3.49 seconds).
+- Ruff/formatting/whitespace checks pass. Tests removed their disposable servers,
+  network, private bucket, and owned rows/triggers/functions. No shared migration,
+  Go, infrastructure, or unrelated service changed.
+
 ## Remaining sequence
 
-1. Failed job and video transitions in the same transaction.
+1. Connect media/storage/model/database stages into a single indexing operation.
 2. Kafka consumption, bounded retries, offset handling, and service lifecycle.
 3. Real backend/processor end-to-end smoke test using the shared infrastructure.
 4. Frontend upload, search, and playback, after the backend integration works.

@@ -5,8 +5,8 @@ This checkpoint contains the real CPU OpenCLIP embedding core, internal text
 HTTP service, FFprobe upload validation, timestamped FFmpeg frame extraction,
 and private source/thumbnail transfers through MinIO's S3 API. PostgreSQL
 connections, atomic job claims, and retry-safe frame writes are verified against
-the shared schema. Success finalization is implemented; failure transitions and
-Kafka consumption are subsequent features. These components are not yet connected
+the shared schema, including transactional success and failure finalization.
+Kafka consumption is a subsequent feature. These components are not yet connected
 to an ingestion worker.
 
 ## Install and test the embedding core
@@ -345,7 +345,7 @@ lock timeout. The application name is `framesearch-processor`.
 tables, and the installed `vector` extension. It does not run or modify the
 shared migration. Database failures raise `DatabaseError`; the check is not yet
 wired into HTTP readiness. Atomic claims and frame persistence are described
-below; success finalization is implemented, with failure transitions still pending.
+below, including transactional ready/completed and failed states.
 
 ```python
 from framesearch_processor.database import Database
@@ -500,6 +500,27 @@ and 60 frames/180 seconds. Trigger tests reject or suppress either status update
 and verify both states, duration, and pruning roll back. Packaged-image completion
 passed as UID 10001 without a source mount. Host suite: **206 passed, 102 skipped**
 (5.63 seconds). Failure recording and Kafka acknowledgment remain separate work.
+
+## Terminal job failure
+
+`Database.fail_job(claim, reason)` stores the same trimmed actionable reason in
+the video's `processing_error` and job's `last_error`, and moves both rows to
+`failed` in one video-first locked transaction. Reasons contain 1–1000 Unicode
+characters after trimming; the later worker must use bounded messages rather
+than dumping exception traces into these public fields.
+
+Only the current processing claim can fail. Queued/completed videos, stale
+attempt receipts, and older failed jobs cannot overwrite a newer retry. Failed
+or suppressed updates roll back both rows. Partial frame rows remain hidden by
+ready-only search and can be upserted by a later manual retry. A successful
+return confirms durable terminal failure; this method does not commit Kafka
+offsets or schedule retries.
+
+Added 18 checks: five input guards and 13 actual PostgreSQL checks. The focused
+live suite passed **151 tests, no skips** (6.17 seconds), including a failed job
+followed by a new retry that reuses frame IDs and completes while preserving the
+old job's failure history. Packaged success/failure checks passed as UID 10001.
+Host regression: **211 passed, 115 skipped** (3.49 seconds).
 
 ## Integration notes for Developer 1
 
