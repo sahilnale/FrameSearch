@@ -2,6 +2,7 @@
 
 Base contract/backend commit: `1028604`. Branch: `codex/processor-core`.
 Synced latest main `1b1185d` through a merge; the database schema is unchanged.
+Fetched main again for the storage checkpoint; it remains at `1b1185d`.
 Remote main was reorganized into feature commits; the processor work was carried
 onto this fresh branch without modifying or discarding the earlier branch.
 Each feature gets a separate commit after its focused checks.
@@ -12,8 +13,10 @@ Each feature gets a separate commit after its focused checks.
 | Internal text HTTP endpoint and readiness | Implemented, verified, pushed | Commit `de4cb2a`; 38 unit tests and real HTTP test pass |
 | Processor container packaging | Implemented, verified, pushed | Commit `aa6df84`; Linux ARM64 build and live real HTTP check pass |
 | FFprobe upload validation | Implemented, verified, pushed | Commit `32f2652`; 35 focused unit tests and 7 real-media checks pass |
-| Timestamped FFmpeg sampling | Implemented, verified | Full suite: 121 passed, including real decoding and all real-model checks |
-| Kafka, MinIO, pgvector indexing and recovery | Planned | Not run |
+| Timestamped FFmpeg sampling | Implemented, verified, pushed | Commit `ba46b36`; 121 passed, including real decoding and all real-model checks |
+| MinIO source download and thumbnail upload | Implemented, verified | Full suite: 175 passed, no skips, including actual MinIO and real CPU inference |
+| PostgreSQL job claims, frame persistence and terminal states | Planned | Not run |
+| Kafka consumption, bounded retries and recovery | Planned | Not run |
 | Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
 
 This file is Developer 2-owned. Developer 1 maintains the root progress document.
@@ -112,13 +115,49 @@ Only successfully executed checks will be marked verified here.
   all passed. This check imports the packaged sampler without mounting source code.
 - Ruff checks/formatting: passed. No Kafka, MinIO, or database operations added.
 
+## MinIO storage checks
+
+- Added pinned Boto3 `1.43.109` with locked dependencies. Uses the four shared
+  S3 environment variables, `us-east-1` signing, and path-style requests, matching
+  Go. Credentials are hidden from the settings representation.
+- Focused host storage/configuration checks: **49 passed** (1.83 seconds).
+  Botocore request stubs are limited to unit tests; application transfers use the
+  real SDK. Covers bounded streaming, exact size/content-type checks, cleanup,
+  media versus infrastructure errors, deterministic keys, valid JPEG bounds,
+  Content-MD5, and failure before returning a thumbnail key.
+- The attempted public MinIO image pull failed with an unavailable/access-denied
+  registry response. Built the test-only server from the official pinned source
+  tag `RELEASE.2025-10-15T17-29-55Z` using Go 1.24.8. This is a source build, not
+  an official precompiled image. No shared infrastructure files were changed.
+- `.venv/bin/python tests/run_minio_tests.py --real-model`: **175 passed, no
+  skips** (18.86 seconds) on Linux ARM64 Docker. This includes five actual MinIO
+  integration checks and all four genuine CPU OpenCLIP checks, using the existing
+  cache offline.
+- Actual MP4 upload/download, FFmpeg extraction at `0, 3000, 6000`, private JPEG
+  upload, signed HTTP reads, metadata/content-type verification, and anonymous
+  access rejection all passed. Processing the same clip twice leaves the same
+  three thumbnail objects. Missing uploads, missing buckets, invalid metadata,
+  and invalid credentials produce the expected error classes.
+- Actual MinIO download-to-FFmpeg-to-OpenCLIP-to-thumbnail-upload check verifies
+  all three vectors are finite, 512-dimensional, and L2 normalized. It does not
+  measure search accuracy or exercise PostgreSQL/Kafka.
+- Production image and test images built successfully. The processor and MinIO
+  containers run as UID 10001; tests use an internal network with no published
+  ports, disposable private buckets/credentials, and read-only source/cache
+  mounts. Confirmed all harness containers and the network were removed.
+- Ruff checks/formatting and `uv lock --check --offline`: passed.
+- Storage is implemented as a reusable component. It is not wired into an
+  ingestion worker or the HTTP readiness check. No Go, schema, infrastructure,
+  shared environment files, or Developer 1-owned documentation were modified.
+- AWS migration and actual AWS S3 transfers remain untested. Preserve object
+  keys when copying data and coordinate bucket region with both signing clients.
+
 ## Remaining sequence
 
-1. Source download and deterministic thumbnail upload through MinIO.
-2. Transactional PostgreSQL job claims, frame upserts, and terminal states.
-3. Kafka consumption, bounded retries, offset handling, and service lifecycle.
-4. Real backend/processor end-to-end smoke test using the shared infrastructure.
-5. Frontend upload, search, and playback, after the backend integration works.
+1. Transactional PostgreSQL job claims, frame upserts, and terminal states.
+2. Kafka consumption, bounded retries, offset handling, and service lifecycle.
+3. Real backend/processor end-to-end smoke test using the shared infrastructure.
+4. Frontend upload, search, and playback, after the backend integration works.
 
 Each feature remains a separate tested commit and is pushed at its checkpoint.
 Full end-to-end functionality is not yet implemented.

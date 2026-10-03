@@ -2,9 +2,10 @@
 
 Developer 2's processor implementation, following master specification section 13.
 This checkpoint contains the real CPU OpenCLIP embedding core, internal text
-HTTP service, FFprobe upload validation, and timestamped FFmpeg frame extraction.
-Kafka consumption, storage, and database transitions are subsequent features.
-The media modules are not yet connected to an ingestion worker.
+HTTP service, FFprobe upload validation, timestamped FFmpeg frame extraction,
+and private source/thumbnail transfers through MinIO's S3 API. Kafka consumption
+and database transitions are subsequent features. These components are not yet
+connected to an ingestion worker.
 
 ## Install and test the embedding core
 
@@ -197,8 +198,8 @@ Frame timestamps come from integer presentation timestamps and the exact rationa
 time base. They are floored to milliseconds. For example, a frame at 3.003 seconds
 is stored as `3003`. The source timeline is preserved, including nonzero starting
 timestamps, so the returned times correspond to source playback. JPEG filenames
-are deterministic (`frame-003003.jpg`), allowing the later storage feature to use
-stable keys on retries.
+are deterministic (`frame-003003.jpg`), and the storage adapter uses stable object
+keys on retries.
 
 Use the context manager while embedding and uploading the frames:
 
@@ -230,9 +231,108 @@ An additional native-browser check with byte-range playback confirmed the
 timestamp behavior for generated zero-offset and shifted color clips. Complete
 application playback and cross-browser testing remain part of later integration.
 
+## Download sources and upload thumbnails through MinIO
+
+`framesearch_processor.storage.ObjectStorage` uses pinned Boto3 `1.43.109` and
+the existing shared S3 environment variables. It uses Signature V4, path-style
+requests, and region `us-east-1`, matching the Go storage client.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `S3_ENDPOINT_INTERNAL` | `http://localhost:9000` | Internal MinIO/S3 endpoint |
+| `S3_ACCESS_KEY` | Required | Access key; hidden from settings repr |
+| `S3_SECRET_KEY` | Required | Secret key; hidden from settings repr |
+| `S3_BUCKET` | `framesearch` | Existing private bucket |
+
+The application adapter does not create buckets or change access policies.
+`check_bucket()` verifies access to the configured bucket. Use the source
+`object_key` and `size_bytes` from the database rather than rebuilding a path.
+`downloaded_video()` checks the object's content type and declared size, streams
+it in 64 KiB chunks with the 100 MiB bound, and removes the local temporary copy
+when its context exits. The original remote upload stays in storage.
+
+Once the database worker supplies `video_id` (a UUID), `object_key`, and
+`size_bytes`, its media/storage stage can use these components together:
+
+```python
+from framesearch_processor.sampling import extracted_frames
+from framesearch_processor.settings import StorageSettings
+from framesearch_processor.storage import ObjectStorage
+
+# Reuse the service's already-loaded OpenClipEmbedder as `model`.
+store = ObjectStorage(StorageSettings.from_env())
+try:
+    store.check_bucket()
+    with store.downloaded_video(object_key, size_bytes) as source:
+        with extracted_frames(source, size_bytes) as clip:
+            vectors = model.embed_images([frame.path for frame in clip.frames])
+            records = [
+                {
+                    "timestamp_ms": frame.timestamp_ms,
+                    "embedding": vector,
+                    "model_version": model.model_version,
+                    "thumbnail_key": store.upload_thumbnail(
+                        video_id, frame, model.model_version
+                    ),
+                }
+                for frame, vector in zip(clip.frames, vectors, strict=True)
+            ]
+    # Transactional persistence of these records is the next feature.
+finally:
+    store.close()
+```
+
+Thumbnail keys are stable across retries:
+`thumbnails/{video_uuid}/{model_version}/{timestamp_ms:06d}.jpg`. Uploads validate
+JPEG content and the 640-pixel edge bound, set `image/jpeg`, include video/time/
+model metadata, and send Content-MD5 for integrity checking. The key is returned
+only after a successful PUT. Retrying overwrites the same keys rather than
+creating duplicates. SDK requests have bounded timeouts and at most three total
+attempts; job-level retry handling remains part of the future worker.
+
+Missing uploads and mismatched upload metadata raise actionable `InvalidVideo`
+errors. Missing buckets, bad credentials, interrupted transfers, and failed
+thumbnail PUTs raise `StorageError`. A later worker must persist the job/video
+failure or retry state; it must only mark a video ready after all thumbnails and
+frame rows are durable. This module does not change database states yet.
+
+Run the real storage checks from the processor directory:
+
+```sh
+uv run --frozen python tests/run_minio_tests.py
+# Include genuine inference after caching weights with the real-model test above:
+uv run --frozen python tests/run_minio_tests.py --real-model
+```
+
+The harness builds the production processor image, a test image with locked dev
+dependencies, and a non-root MinIO server from the official pinned source tag
+`RELEASE.2025-10-15T17-29-55Z`. The public MinIO image could not be pulled during
+this checkpoint, so `tests/minio.Dockerfile` follows upstream's source build
+route. These Dockerfiles are test infrastructure, not the shared deployment.
+
+Runtime checks use an internal disposable Docker network with no published
+ports, random test credentials, and new private buckets per test. Source and
+cached model mounts are read-only; both containers run as UID 10001. The harness
+removes its containers and network afterwards, retaining images and the host
+model cache. The full storage checkpoint passed **175 tests, no skips, in
+18.86 seconds**, including real FFmpeg, actual MinIO transfers, signed thumbnail
+reads, anonymous-access rejection, repeatable retry keys, and all four genuine
+CPU model checks. This does not measure semantic retrieval accuracy or establish
+complete application integration.
+
+Moving to AWS S3 later requires provisioning a private bucket, changing endpoint
+and credentials, and copying existing objects while preserving keys. The current
+Go/Python clients both sign for `us-east-1`; use that AWS region initially or
+coordinate configurable region support in both services. AWS S3 has not been
+tested by this checkpoint.
+
 ## Integration notes for Developer 1
 
 The frozen model version is unchanged. No Go, schema, infrastructure, shared docs,
 or environment files are modified by this work. The internal HTTP server can
 listen on `0.0.0.0:8000` within Compose; indexing and its integrations come after it.
 The intended deployment uses exactly one Python process and one worker replica.
+MinIO deployment still needs a persistent data volume, private bucket, shared
+credentials, browser CORS, and the public endpoint used by Go for signed URLs.
+The processor uses only the internal endpoint. The test-only pinned source
+Dockerfile is available as a reference if the shared MinIO image is unavailable.
