@@ -16,8 +16,8 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | FFprobe upload validation | Implemented, verified, pushed | Commit `32f2652`; 35 focused unit tests and 7 real-media checks pass |
 | Timestamped FFmpeg sampling | Implemented, verified, pushed | Commit `ba46b36`; 121 passed, including real decoding and all real-model checks |
 | MinIO source download and thumbnail upload | Implemented, verified, pushed | Commit `3407330`; 175 passed, no skips, including actual MinIO and real CPU inference |
-| PostgreSQL connection/configuration and schema check | Implemented, verified | 22 focused checks pass, including seven actual PostgreSQL checks and fifteen configuration checks |
-| Atomic PostgreSQL job claiming | Planned | Not run |
+| PostgreSQL connection/configuration and schema check | Implemented, verified, pushed | Commit `87cf40e`; 22 focused checks pass, including seven actual PostgreSQL checks and fifteen configuration checks |
+| Atomic PostgreSQL job claiming | Implemented, verified | 56 focused checks pass, including concurrent claims, lock order, duplicate handling, and rollback |
 | Idempotent frame upserts | Planned | Not run |
 | Transactional ready/failed states | Planned | Not run |
 | Kafka consumption, bounded retries and recovery | Planned | Not run |
@@ -187,16 +187,46 @@ Only successfully executed checks will be marked verified here.
   migration or application rows were changed. Ruff checks, formatting, and
   offline lockfile validation pass.
 - Connection logic is not wired into application readiness or a worker yet.
-  Atomic claims, frame writes, and terminal transitions are separate next commits.
+  Atomic claims, frame writes, and terminal transitions are separate commits.
+
+## Atomic job claiming checkpoint
+
+- Fetched main; still `1b1185d`. No migration, Go, infrastructure, or dependency
+  changes are needed. Only Developer 2-owned processor files are modified.
+- Added `Database.claim_job` using the shared video-first lock order and guarded
+  queued-job update. Job/video become processing together; the attempt count is
+  incremented once, old errors cleared, and source metadata returned after commit.
+- Results distinguish claimed, busy, terminal, and missing/mismatched jobs.
+  Inconsistent states raise `JobStateError`; nothing is partially committed.
+  Late old failed-job events do not claim or modify a newer manual retry job.
+- Added 34 focused claim checks: 32 real PostgreSQL checks and two UUID guards.
+  Shared the existing connection-test fixture through `tests/conftest.py`.
+- Real database/configuration suite: **56 passed, no skips** (0.84 seconds) on
+  PostgreSQL 16 / pgvector 0.8.7, Linux ARM64, using the unchanged shared migration.
+  Covers all 20 job/video status pairs, unknown/mismatched IDs, concurrent events,
+  duplicate attempts/timestamps, late failed-job events, and requeued jobs.
+- The lock-order check holds the video lock while a claimant waits and verifies
+  the job can still be locked with NOWAIT. Trigger tests reject or suppress the
+  subsequent video update and verify the job status/attempt increment roll back.
+- Built `framesearch-processor:job-claims` and its dev test image using cached
+  dependencies. Actual packaged claim/duplicate verification passed as UID 10001
+  without mounting application source.
+- Full host suite: **159 passed, 72 skipped** (6.52 seconds). Live media/model/
+  storage/database checks retain their opt-in/tooling requirements.
+- Tests used a disposable FrameSearch PostgreSQL container on an internal network
+  with no published ports. The test container/network and test-owned rows,
+  triggers, and functions were cleaned up. No unrelated service was started.
+- Ruff checks/formatting, offline lockfile validation, and diff whitespace checks
+  pass. Frame rows, final ready/failed transitions, Kafka, and worker lifecycle
+  remain separate features.
 
 ## Remaining sequence
 
-1. Atomic job claiming, with concurrency and duplicate-event tests.
-2. Idempotent frame upserts, with actual pgvector persistence tests.
-3. Ready/failed job and video transitions in the same transaction.
-4. Kafka consumption, bounded retries, offset handling, and service lifecycle.
-5. Real backend/processor end-to-end smoke test using the shared infrastructure.
-6. Frontend upload, search, and playback, after the backend integration works.
+1. Idempotent frame upserts, with actual pgvector persistence tests.
+2. Ready/failed job and video transitions in the same transaction.
+3. Kafka consumption, bounded retries, offset handling, and service lifecycle.
+4. Real backend/processor end-to-end smoke test using the shared infrastructure.
+5. Frontend upload, search, and playback, after the backend integration works.
 
 Each feature remains a separate tested commit and is pushed at its checkpoint.
 Full end-to-end functionality is not yet implemented.

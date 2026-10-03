@@ -1,6 +1,5 @@
 """Opt-in connection checks against an isolated PostgreSQL/pgvector server."""
 
-import os
 from dataclasses import replace
 from urllib.parse import urlsplit
 from uuid import uuid4
@@ -17,22 +16,7 @@ from framesearch_processor.database import (
 )
 from framesearch_processor.settings import DatabaseSettings
 
-pytestmark = [
-    pytest.mark.database,
-    pytest.mark.skipif(
-        os.getenv("FRAMESEARCH_DATABASE_TEST") != "1", reason="opt-in live PostgreSQL test"
-    ),
-]
-
-
-@pytest.fixture
-def database():
-    url = os.environ["TEST_DATABASE_URL"]
-    if urlsplit(url).hostname not in {"postgres", "localhost", "127.0.0.1", "::1"}:
-        pytest.fail("Database tests require a local disposable server")
-    database = Database(DatabaseSettings(url))
-    database.check_schema()
-    return database
+pytestmark = pytest.mark.database
 
 
 def test_real_connection_checks_shared_schema_and_closes(database):
