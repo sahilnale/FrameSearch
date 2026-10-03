@@ -2,7 +2,8 @@
 
 Base contract/backend commit: `1028604`. Branch: `codex/processor-core`.
 Synced latest main `1b1185d` through a merge; the database schema is unchanged.
-Fetched main again for the storage checkpoint; it remains at `1b1185d`.
+Processor checkpoints through atomic job claims were merged and pushed to main
+at `822c29c`. This branch now starts from that main commit; the schema is unchanged.
 Remote main was reorganized into feature commits; the processor work was carried
 onto this fresh branch without modifying or discarding the earlier branch.
 Each commit covers one small behavior with its focused checks. Database work is
@@ -17,8 +18,8 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | Timestamped FFmpeg sampling | Implemented, verified, pushed | Commit `ba46b36`; 121 passed, including real decoding and all real-model checks |
 | MinIO source download and thumbnail upload | Implemented, verified, pushed | Commit `3407330`; 175 passed, no skips, including actual MinIO and real CPU inference |
 | PostgreSQL connection/configuration and schema check | Implemented, verified, pushed | Commit `87cf40e`; 22 focused checks pass, including seven actual PostgreSQL checks and fifteen configuration checks |
-| Atomic PostgreSQL job claiming | Implemented, verified | 56 focused checks pass, including concurrent claims, lock order, duplicate handling, and rollback |
-| Idempotent frame upserts | Planned | Not run |
+| Atomic PostgreSQL job claiming | Implemented, verified, pushed | Commit `aa9a6a5`; 56 focused checks pass, including concurrent claims, lock order, duplicate handling, and rollback |
+| Idempotent frame upserts | Implemented, verified | 100 focused checks pass, including real MinIO/FFmpeg/CLIP-to-pgvector persistence and retry checks |
 | Transactional ready/failed states | Planned | Not run |
 | Kafka consumption, bounded retries and recovery | Planned | Not run |
 | Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
@@ -220,13 +221,42 @@ Only successfully executed checks will be marked verified here.
   pass. Frame rows, final ready/failed transitions, Kafka, and worker lifecycle
   remain separate features.
 
+## Idempotent frame persistence checkpoint
+
+- Added bounded, validated `FrameRecord` batches using the existing shared
+  `(video_id, timestamp_ms, model_version)` uniqueness constraint. No migration
+  or dependency changes. Thumbnail keys must match the video/time/frozen model;
+  vectors must contain 512 finite normalized coordinates.
+- A video-first locked transaction verifies the processing claim's job and
+  attempt count. Recovery/manual retry invalidate old receipts. Retry upserts
+  preserve frame IDs and creation times; a later error rolls back the whole batch.
+  Status remains processing, keeping partial results hidden from public search.
+- Added 30 input checks and 14 live checks covering stable IDs, updated vectors,
+  concurrent retries, 60 frames, invalid claims/states, old recovery/retry receipts,
+  other model rows, and rollback after rejected/suppressed database inserts.
+- Actual database/configuration suite: **100 passed, no skips** (5.82 seconds) on
+  Linux ARM64, PostgreSQL 16/pgvector 0.8.7, using the unchanged shared migration.
+  The combined real pipeline downloads a generated MP4 from private MinIO,
+  extracts three JPEGs with FFmpeg, computes genuine CPU CLIP embeddings, uploads
+  thumbnails, and upserts vectors twice without duplicate rows. Timestamps are
+  `0, 3000, 6000`; actual text-to-pgvector cosine SQL also passes. This is not a
+  semantic relevance evaluation or a full public Go/Kafka smoke test.
+- Production and dev test images built successfully. Packaged persistence/retry
+  verification passed as UID 10001 without mounting application source. Tests
+  used internal networking, no published ports, disposable credentials/private
+  buckets, and read-only source/checkpoint/migration mounts. All test containers,
+  the network, and test-owned database rows/functions/triggers were removed.
+- Full host suite: **189 passed, 86 skipped** (3.97 seconds). Ruff, formatting,
+  offline lockfile validation, and whitespace checks pass. No unrelated services
+  were started. Finalization still needs to verify the expected frame set; this
+  write operation does not prune older rows or change terminal states.
+
 ## Remaining sequence
 
-1. Idempotent frame upserts, with actual pgvector persistence tests.
-2. Ready/failed job and video transitions in the same transaction.
-3. Kafka consumption, bounded retries, offset handling, and service lifecycle.
-4. Real backend/processor end-to-end smoke test using the shared infrastructure.
-5. Frontend upload, search, and playback, after the backend integration works.
+1. Ready/failed job and video transitions in the same transaction.
+2. Kafka consumption, bounded retries, offset handling, and service lifecycle.
+3. Real backend/processor end-to-end smoke test using the shared infrastructure.
+4. Frontend upload, search, and playback, after the backend integration works.
 
 Each feature remains a separate tested commit and is pushed at its checkpoint.
 Full end-to-end functionality is not yet implemented.
