@@ -6,8 +6,8 @@ HTTP service, FFprobe upload validation, timestamped FFmpeg frame extraction,
 and private source/thumbnail transfers through MinIO's S3 API. PostgreSQL
 connections, atomic job claims, and retry-safe frame writes are verified against
 the shared schema, including transactional success and failure finalization.
-Kafka consumption is a subsequent feature. These components are not yet connected
-to an ingestion worker.
+These stages are connected by a real video indexing operation. Kafka consumption
+and the ingestion worker lifecycle are subsequent features.
 
 ## Install and test the embedding core
 
@@ -521,6 +521,29 @@ live suite passed **151 tests, no skips** (6.17 seconds), including a failed job
 followed by a new retry that reuses frame IDs and completes while preserving the
 old job's failure history. Packaged success/failure checks passed as UID 10001.
 Host regression: **211 passed, 115 skipped** (3.49 seconds).
+
+## One connected indexing attempt
+
+`VideoIndexer(database, storage, embedder).index(claim)` consumes an already
+claimed job. It downloads the original database key, validates/decodes the MP4,
+encodes actual JPEGs with the supplied shared OpenCLIP model, uploads every
+thumbnail, upserts the batch, and commits successful completion. Blocking media,
+model, and storage work happens before the short database transactions. Temporary
+sources/JPEGs are cleaned even when a downstream operation fails.
+
+The caller owns claim handling, bounded retries, and durable failure recording.
+An interrupted attempt raises its real error and leaves processing state intact;
+retry uses the same claim receipt and deterministic thumbnail/frame keys. No
+Kafka offsets or automatic retry policy are handled here. Reuse the HTTP service's
+single model rather than constructing a second model for indexing.
+
+Three real integration checks passed: successful ready indexing and actual
+text-vector retrieval, interrupted second-thumbnail upload followed by successful
+retry, and corrupt MP4 rejection followed by caller-recorded failure. With previous
+database tests, **154 passed, no skips** (10.09 seconds), using actual MinIO,
+FFmpeg, cached CPU OpenCLIP, and PostgreSQL. Host: **211 passed, 118 skipped**
+(3.42 seconds). The production image builds and imports the packaged indexer as
+UID 10001. Public API/Kafka integration and semantic evaluation remain pending.
 
 ## Integration notes for Developer 1
 
