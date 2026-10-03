@@ -10,6 +10,7 @@ from uuid import UUID, uuid4
 import psycopg
 from psycopg.rows import dict_row
 
+from .media import MAX_DURATION_SECONDS
 from .settings import EMBEDDING_DIMENSIONS, MAX_FRAMES, MODEL_VERSION, DatabaseSettings
 from .storage import thumbnail_key
 
@@ -67,6 +68,17 @@ def _vector_literal(embedding: Sequence[float]) -> str:
     if abs(math.hypot(*values) - 1.0) > 1e-6:
         raise ValueError("frame embedding must be L2 normalized")
     return "[" + ",".join(map(str, values)) + "]"
+
+
+def _validate_claim(claim: ClaimedJob) -> None:
+    if (
+        not isinstance(claim, ClaimedJob)
+        or not isinstance(claim.job_id, UUID)
+        or not isinstance(claim.video_id, UUID)
+        or type(claim.attempt_count) is not int
+        or claim.attempt_count < 1
+    ):
+        raise ValueError("operation requires a valid ClaimedJob")
 
 
 class Database:
@@ -174,7 +186,7 @@ class Database:
             (claim.video_id,),
         ).fetchone()
         if video is None:
-            raise JobStateError("Frame writes require a processing video")
+            raise JobStateError("Operation requires a processing video")
         job = connection.execute(
             """SELECT id FROM processing_jobs
                 WHERE id = %s AND video_id = %s AND status = 'processing'
@@ -182,18 +194,11 @@ class Database:
             (claim.job_id, claim.video_id, claim.attempt_count),
         ).fetchone()
         if job is None:
-            raise JobStateError("Frame writes require the current processing job claim")
+            raise JobStateError("Operation requires the current processing job claim")
 
     def upsert_frames(self, claim: ClaimedJob, frames: Sequence[FrameRecord]) -> tuple[UUID, ...]:
         """Persist a bounded batch after thumbnail uploads; never mark the video ready."""
-        if (
-            not isinstance(claim, ClaimedJob)
-            or not isinstance(claim.job_id, UUID)
-            or not isinstance(claim.video_id, UUID)
-            or type(claim.attempt_count) is not int
-            or claim.attempt_count < 1
-        ):
-            raise ValueError("frame writes require a valid ClaimedJob")
+        _validate_claim(claim)
         if not isinstance(frames, Sequence) or not 1 <= len(frames) <= MAX_FRAMES:
             raise ValueError("frame batch must contain 1–60 records")
         parameters = []
@@ -237,3 +242,65 @@ class Database:
                     raise DatabaseError("Frame write did not persist its record")
                 ids.append(result["id"])
         return tuple(ids)
+
+    def complete_job(
+        self, claim: ClaimedJob, duration_seconds: float, expected_timestamps: Sequence[int]
+    ) -> None:
+        """Publish a complete frame set after all thumbnail uploads have succeeded."""
+        _validate_claim(claim)
+        if (
+            isinstance(duration_seconds, bool)
+            or not isinstance(duration_seconds, int | float)
+            or not 0 < duration_seconds <= MAX_DURATION_SECONDS
+        ):
+            raise ValueError("duration must be finite and within 0–180 seconds")
+        if (
+            not isinstance(expected_timestamps, Sequence)
+            or not 1 <= len(expected_timestamps) <= MAX_FRAMES
+            or any(type(value) is not int for value in expected_timestamps)
+        ):
+            raise ValueError("expected timestamps must contain 1–60 integer timestamps")
+        expected = tuple(expected_timestamps)
+        if len(set(expected)) != len(expected):
+            raise ValueError("expected timestamps must be unique")
+        expected_keys = {
+            timestamp: thumbnail_key(claim.video_id, timestamp) for timestamp in expected
+        }
+        with self.connection() as connection:
+            self._require_processing_claim(connection, claim)
+            rows = connection.execute(
+                """SELECT timestamp_ms, thumbnail_key, vector_norm(embedding) AS norm
+                     FROM video_frames WHERE video_id = %s AND model_version = %s
+                       AND timestamp_ms = ANY(%s) FOR UPDATE""",
+                (claim.video_id, MODEL_VERSION, list(expected)),
+            ).fetchall()
+            if len(rows) != len(expected) or any(
+                row["thumbnail_key"] != expected_keys[row["timestamp_ms"]]
+                or not math.isfinite(row["norm"])
+                or abs(row["norm"] - 1.0) > 1e-6
+                for row in rows
+            ):
+                raise JobStateError(
+                    "Expected frame set is missing or invalid; video cannot be ready"
+                )
+            # Remove a recovered attempt's obsolete rows before publishing the expected set.
+            connection.execute(
+                """DELETE FROM video_frames WHERE video_id = %s AND model_version = %s
+                       AND NOT (timestamp_ms = ANY(%s))""",
+                (claim.video_id, MODEL_VERSION, list(expected)),
+            )
+            updated_job = connection.execute(
+                """UPDATE processing_jobs SET status = 'completed', last_error = NULL,
+                          updated_at = now()
+                     WHERE id = %s AND video_id = %s AND status = 'processing'
+                       AND attempt_count = %s""",
+                (claim.job_id, claim.video_id, claim.attempt_count),
+            ).rowcount
+            updated_video = connection.execute(
+                """UPDATE videos SET status = 'ready', duration_seconds = %s,
+                          processing_error = NULL, updated_at = now()
+                     WHERE id = %s AND status = 'processing'""",
+                (duration_seconds, claim.video_id),
+            ).rowcount
+            if updated_job != 1 or updated_video != 1:
+                raise JobStateError("Completion could not update both job and video")

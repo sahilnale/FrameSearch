@@ -5,8 +5,9 @@ This checkpoint contains the real CPU OpenCLIP embedding core, internal text
 HTTP service, FFprobe upload validation, timestamped FFmpeg frame extraction,
 and private source/thumbnail transfers through MinIO's S3 API. PostgreSQL
 connections, atomic job claims, and retry-safe frame writes are verified against
-the shared schema. Final state transitions and Kafka consumption are subsequent
-features. These components are not yet connected to an ingestion worker.
+the shared schema. Success finalization is implemented; failure transitions and
+Kafka consumption are subsequent features. These components are not yet connected
+to an ingestion worker.
 
 ## Install and test the embedding core
 
@@ -344,7 +345,7 @@ lock timeout. The application name is `framesearch-processor`.
 tables, and the installed `vector` extension. It does not run or modify the
 shared migration. Database failures raise `DatabaseError`; the check is not yet
 wired into HTTP readiness. Atomic claims and frame persistence are described
-below; final state transitions remain unimplemented.
+below; success finalization is implemented, with failure transitions still pending.
 
 ```python
 from framesearch_processor.database import Database
@@ -454,8 +455,8 @@ thumbnail key while preserving the frame UUID and creation time. Returned UUIDs
 match input order and become available after commit. A later frame failure rolls
 back earlier inserts and updates in that batch. Successful writes leave job/video
 status unchanged, so processing frames remain excluded by Go's ready-only search.
-This method does not check S3 object existence or prune older rows. Finalization
-must verify the complete expected frame set before marking ready.
+This method does not check S3 object existence or prune older rows. Success
+finalization below verifies the complete expected frame set before marking ready.
 
 ```sh
 FRAMESEARCH_DATABASE_TEST=1 uv run --frozen pytest -q tests/test_frame_persistence.py
@@ -473,6 +474,32 @@ pipeline persisted genuine vectors for timestamps `0, 3000, 6000` and executed a
 real text-to-vector cosine query. This does not measure semantic search accuracy
 or exercise Go/Kafka ingestion. Packaged-image verification passed as UID 10001
 without mounting source. Host regression: **189 passed, 86 skipped** (3.97 seconds).
+
+## Successful job completion
+
+After successful uploads and frame persistence, call
+`Database.complete_job(claim, clip.metadata.duration_seconds, expected_timestamps)`.
+The expected timestamps must come from the complete extraction result, containing
+1–60 unique integer timestamps. Duration must be finite, positive, and at most
+180 seconds. The caller must finish all thumbnail PUTs before invoking completion;
+this database method cannot verify remote storage durability.
+
+In one video-first locked transaction it validates the current processing claim,
+checks that every expected active-model frame has its deterministic key and a
+normalized vector, removes obsolete active-model rows from previous attempts,
+and changes video to `ready` and job to `completed`. It stores actual duration,
+clears both errors, and updates both timestamps. Other model rows remain isolated.
+Any missing/invalid frame, stale claim, or failed status update prevents readiness
+and rolls back the transaction, including frame cleanup. Only a successful return
+confirms the commit; a later duplicate event sees the terminal state via claim_job.
+
+Added 33 checks: 17 input guards and 16 live PostgreSQL checks. The focused
+database suite, including the previous real MinIO/CLIP persistence pipeline,
+passed **133 tests, no skips** (8.24 seconds). Success boundaries include one frame
+and 60 frames/180 seconds. Trigger tests reject or suppress either status update
+and verify both states, duration, and pruning roll back. Packaged-image completion
+passed as UID 10001 without a source mount. Host suite: **206 passed, 102 skipped**
+(5.63 seconds). Failure recording and Kafka acknowledgment remain separate work.
 
 ## Integration notes for Developer 1
 
