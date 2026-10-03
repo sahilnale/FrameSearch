@@ -2,9 +2,9 @@
 
 Developer 2's processor implementation, following master specification section 13.
 This checkpoint contains the real CPU OpenCLIP embedding core, internal text
-HTTP service, and FFprobe upload validation. Frame extraction, Kafka consumption,
-storage, and database transitions are subsequent features. The validation module
-is not yet connected to an ingestion worker.
+HTTP service, FFprobe upload validation, and timestamped FFmpeg frame extraction.
+Kafka consumption, storage, and database transitions are subsequent features.
+The media modules are not yet connected to an ingestion worker.
 
 ## Install and test the embedding core
 
@@ -152,8 +152,8 @@ Invalid media raises `InvalidVideo` with an actionable reason. Missing tools,
 probe timeouts, and malformed tool output raise `MediaToolError`, so the later
 worker can distinguish media rejection from infrastructure failure. FFprobe has
 a 15-second timeout and can access only local files. Metadata validation alone
-does not establish that every frame decodes; the next extraction feature must
-check actual decoding before indexing can succeed.
+does not establish that every frame decodes. The sampler below checks actual
+decoding before indexing can succeed.
 
 The real-media tests generate MP4, MOV, Matroska, audio-only, and duration-boundary
 fixtures with FFmpeg, then run real FFprobe. They skip on hosts without those
@@ -171,8 +171,64 @@ docker run --rm --user 0 --workdir /work \
 
 This installs locked test dependencies in the disposable container and mounts
 source read-only; it does not change the production image's non-root runtime.
-Latest container run: 80 passed, two opt-in real-model tests skipped. Both real
-model checks were verified at the earlier embedding/HTTP checkpoints.
+The validation checkpoint passed 80 tests with two opt-in model tests skipped.
+The sampling checkpoint passed **121 tests with no skips**, using actual FFmpeg
+and all three opt-in model checks with the cached genuine checkpoint. To run the
+same full check after caching weights, add these options before the image name
+in the command above:
+
+```sh
+  --mount "type=bind,source=$PWD/services/processor/.cache/openclip,target=/cache/openclip,readonly" \
+  -e MODEL_CACHE_DIR=/cache/openclip -e HF_HOME=/tmp/huggingface \
+  -e HF_HUB_OFFLINE=1 -e HF_HUB_DISABLE_TELEMETRY=1 \
+  -e FRAMESEARCH_REAL_MODEL_TEST=1 -e IMAGE_BATCH_SIZE=2
+```
+
+## Extract timestamped thumbnails
+
+`framesearch_processor.sampling.extracted_frames` validates and decodes a source
+MP4 in one FFmpeg pass. It selects the first available source frame at or after
+each three-second grid point, capped at 60. A gap in variable-frame-rate footage
+can leave fewer samples; it does not synthesize duplicate frames. JPEGs have a
+maximum edge of 640 pixels and preserve display aspect ratio, including portrait
+and non-square-pixel footage.
+
+Frame timestamps come from integer presentation timestamps and the exact rational
+time base. They are floored to milliseconds. For example, a frame at 3.003 seconds
+is stored as `3003`. The source timeline is preserved, including nonzero starting
+timestamps, so the returned times correspond to source playback. JPEG filenames
+are deterministic (`frame-003003.jpg`), allowing the later storage feature to use
+stable keys on retries.
+
+Use the context manager while embedding and uploading the frames:
+
+```python
+from pathlib import Path
+from framesearch_processor.embeddings import OpenClipEmbedder
+from framesearch_processor.sampling import extracted_frames
+from framesearch_processor.settings import Settings
+
+model = OpenClipEmbedder(Settings.from_env())  # Once per service process.
+with extracted_frames(Path("clip.mp4")) as clip:
+    vectors = model.embed_images([frame.path for frame in clip.frames])
+    print([(frame.timestamp_ms, len(vector))
+           for frame, vector in zip(clip.frames, vectors, strict=True)])
+```
+
+Temporary JPEGs and decoder diagnostics are removed on success, decoder failure,
+and errors raised by the frame consumer. The caller's source file is preserved.
+The decoder uses two threads, filtering/encoding use one each, and extraction has
+a 600-second timeout. Actual packet decoding failures are rejected even when
+FFprobe can read the MP4 header. Every output JPEG is opened and decoded before
+the context yields its frames.
+
+Checks cover sampling boundaries, the 180-second/60-frame limit, fractional-rate
+drift against independent FFprobe frame timestamps, sparse/VFR footage, shifted
+timelines, audio preceding video, thumbnail sizing/aspect ratio, deterministic
+retry outputs, cleanup, corrupt packets, and real frame-to-OpenCLIP inference.
+An additional native-browser check with byte-range playback confirmed the
+timestamp behavior for generated zero-offset and shifted color clips. Complete
+application playback and cross-browser testing remain part of later integration.
 
 ## Integration notes for Developer 1
 
