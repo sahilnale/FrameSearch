@@ -4,7 +4,7 @@ PYTHON ?= python3
 ENV_FILE := $(if $(wildcard .env),.env,.env.example)
 COMPOSE = $(DOCKER) compose --env-file $(ENV_FILE) -f infra/docker-compose.yml
 
-.PHONY: up backend down logs test test-infra smoke migrate config check-app
+.PHONY: up backend down logs test test-infra smoke reconcile reconcile-stale migrate config check-app
 
 up: check-app
 	$(COMPOSE) --profile app up --build
@@ -28,6 +28,14 @@ test-infra:
 smoke: check-app
 	@test -f scripts/smoke.py || { echo 'Developer 2 smoke script scripts/smoke.py is not present.' >&2; exit 1; }
 	$(PYTHON) scripts/smoke.py
+
+reconcile:
+	$(COMPOSE) run --rm --no-deps api --reconcile
+
+reconcile-stale: check-app
+	$(COMPOSE) --profile app stop processor
+	$(COMPOSE) run --rm --no-deps api --reconcile --include-stale --processor-stopped
+	$(COMPOSE) --profile app start processor
 
 migrate:
 	$(COMPOSE) run --rm migrate
