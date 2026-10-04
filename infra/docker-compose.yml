@@ -72,6 +72,44 @@ services:
     command:
       - /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --topic "$$KAFKA_TOPIC" --partitions 1 --replication-factor 1
     restart: "no"
+  minio:
+    image: framesearch-minio:source-2025-10-15
+    build:
+      context: ./minio
+      target: minio
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-framesearch}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-framesearch-local-secret}
+      MINIO_API_CORS_ALLOW_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  minio-init:
+    image: framesearch-mc:source-2025-04-16
+    build:
+      context: ./minio
+      target: mc
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-framesearch}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-framesearch-local-secret}
+      S3_BUCKET: ${S3_BUCKET:-framesearch}
+    depends_on:
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./minio-init.sh:/minio-init.sh:ro
+    entrypoint: ["/bin/sh", "/minio-init.sh"]
+    restart: "no"
 volumes:
   postgres-data:
   kafka-data:
+  minio-data:
