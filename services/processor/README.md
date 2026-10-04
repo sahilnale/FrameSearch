@@ -545,6 +545,21 @@ FFmpeg, cached CPU OpenCLIP, and PostgreSQL. Host: **211 passed, 118 skipped**
 (3.42 seconds). The production image builds and imports the packaged indexer as
 UID 10001. Public API/Kafka integration and semantic evaluation remain pending.
 
+## Kafka event envelope validation
+
+`parse_media_uploaded(value, key)` accepts the frozen UTF-8 JSON envelope and
+Kafka video key, returning typed event/video/job UUIDs and a UTC creation time.
+It validates all six required fields, `event_type=media.uploaded`, integer schema
+version 1, RFC3339 UTC timestamps (including Go's fractional seconds), and a
+partition key matching the video UUID. Payloads are capped at 16 KiB. Duplicate
+JSON fields, extra/missing envelope fields, unknown versions/types, tombstones,
+invalid IDs/times/encoding, and mismatched keys raise `EventValidationError`.
+
+Parsing does not touch the database or acknowledge a message. A malformed event
+does not identify a trustworthy job to mark failed, so the future consumer must
+keep it unacknowledged and report the problem. This checkpoint adds no broker
+dependency or consumer loop. All **41 focused checks passed** (0.02 seconds).
+
 ## Integration notes for Developer 1
 
 The frozen model version is unchanged. No Go, schema, infrastructure, shared docs,
