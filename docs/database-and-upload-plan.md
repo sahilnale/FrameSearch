@@ -3,8 +3,9 @@
 This document explains Developer 1's database and upload design for a reader new
 to FrameSearch. It follows the frozen contracts in `FrameSearch_Specs/SPEC.md`,
 section 13. The initial implementation is in `db/migrations/001_initial.sql` and
-`services/api/`. Live infrastructure and the complete video-processing path have
-not yet been verified.
+`services/api/`. Backend infrastructure, database tests, signed storage uploads and Kafka
+publication have been verified. The complete video-processing path remains
+unverified.
 
 ## Scope and ownership
 
@@ -119,7 +120,7 @@ the previous one has durably failed. Completed and failed rows preserve history.
 The initial migration is transactional, non-destructive, and rerunnable. Future
 schema changes should use new migration files rather than silently changing an
 already deployed schema. Tiny datasets may use exact distance scans even with
-HNSW available. Compose migration execution remains an infrastructure milestone.
+HNSW available. Compose migration execution has been verified against real PostgreSQL/pgvector.
 
 ## Browser-to-storage upload sequence
 
@@ -173,8 +174,8 @@ key; generates a 900-second PUT URL; persists `awaiting_upload`; and returns
 Use `S3_ENDPOINT_PUBLIC=http://localhost:9000` for signing URLs returned to the
 browser. Go uses `S3_ENDPOINT_INTERNAL` for HEAD/bucket requests. Inside Docker,
 the latter will be `http://minio:9000`; returning that hostname to the browser
-would break direct uploads. MinIO CORS setup for `http://localhost:3000` remains
-part of the upcoming infrastructure milestone.
+would break direct uploads. MinIO CORS permits `http://localhost:3000`; the real storage test verified the
+browser-origin preflight.
 
 ### 2. Upload the bytes
 
@@ -223,7 +224,7 @@ by `video_id`:
 The DB commit and Kafka publication are not atomic. If publication fails, the
 job remains queued and Go returns `503` with error code `queued_publish_failed`.
 Repeated complete does not repair publication: the recovery CLI republishes
-queued jobs. Wiring that CLI into `make reconcile` is planned for infrastructure.
+queued jobs. The root `make reconcile` target invokes that CLI.
 Delivery can be duplicated; the processor must claim the job atomically and
 handle duplicate events safely. There is no exactly-once guarantee or outbox.
 
@@ -258,7 +259,7 @@ shapes, and browser-facing URL signing. Separate real DB tests exercise
 transactional enqueue, uniqueness, cosine retrieval, and reconciliation when
 `TEST_DATABASE_URL` is configured.
 
-Current verified results are in `docs/progress.md`: unit tests, race detection,
-static checks, and binary build passed. Real DB tests were skipped. Docker
-startup, actual MinIO/Kafka operation, Developer 2's decoding/embedding worker,
-and the full browser upload/search/playback smoke test remain unverified.
+Current verified results are in `docs/progress.md`: backend unit tests, race
+detection, binary/container builds, real PostgreSQL/pgvector tests, and actual
+MinIO/Kafka upload-publication checks passed. Developer 2's decoding/embedding
+worker and the full browser upload/search/playback smoke test remain unverified.
