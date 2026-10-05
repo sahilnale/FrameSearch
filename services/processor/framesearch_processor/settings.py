@@ -35,10 +35,12 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
+        cache_root = os.getenv("XDG_CACHE_HOME")
+        default_cache = Path(cache_root) / "openclip" if cache_root else Path(".cache/openclip")
         return cls(
             model_name=os.getenv("MODEL_NAME", MODEL_NAME),
             model_pretrained=os.getenv("MODEL_PRETRAINED", MODEL_PRETRAINED),
-            model_cache_dir=Path(os.getenv("MODEL_CACHE_DIR", ".cache/openclip")),
+            model_cache_dir=Path(os.getenv("MODEL_CACHE_DIR") or default_cache),
             torch_threads=int(os.getenv("TORCH_NUM_THREADS", "2")),
             image_batch_size=int(os.getenv("IMAGE_BATCH_SIZE", "4")),
         )

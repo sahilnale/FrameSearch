@@ -55,7 +55,7 @@ Additional processor-local settings (no changes to shared `.env.example`):
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `MODEL_CACHE_DIR` | `.cache/openclip` | Persistent checkpoint cache |
+| `MODEL_CACHE_DIR` | `$XDG_CACHE_HOME/openclip`, otherwise `.cache/openclip` | Explicit override for the persistent checkpoint cache |
 | `TORCH_NUM_THREADS` | `2` | CPU threads, validated within 1–8 |
 | `IMAGE_BATCH_SIZE` | `4` | Images per inference batch, validated within 1–8 |
 
@@ -115,8 +115,9 @@ docker run --rm --name framesearch-processor \
 ```
 
 The image installs Python 3.12, pinned uv 0.6.3, locked CPU dependencies, and
-FFmpeg/FFprobe. It runs one HTTP process as UID 10001, with a writable model cache
-at `/cache/openclip`. The uv installer uses PyPI, avoiding another required image
+FFmpeg/FFprobe. It removes uv's installer cache before exporting the dependency
+layer. It runs one HTTP process as UID 10001, with a writable model cache at
+`/cache/openclip`. The uv installer uses PyPI, avoiding another required image
 registry. The model is downloaded at runtime rather than bundled in the image.
 The actual downloaded checkpoint cache currently occupies approximately 577 MiB
 on the host development machine.
@@ -544,6 +545,23 @@ database tests, **154 passed, no skips** (10.09 seconds), using actual MinIO,
 FFmpeg, cached CPU OpenCLIP, and PostgreSQL. Host: **211 passed, 118 skipped**
 (3.42 seconds). The production image builds and imports the packaged indexer as
 UID 10001. Public API/Kafka integration and semantic evaluation remain pending.
+
+## Shared Compose model cache
+
+Developer 1's Compose sets `XDG_CACHE_HOME=/model-cache` and mounts its persistent
+volume there. The processor now derives the default OpenCLIP cache from that
+setting; `MODEL_CACHE_DIR` still overrides it explicitly. The image prepares
+`/model-cache/openclip` with UID 10001 ownership so a new named volume can be used
+without running the service as root. Standalone Docker retains `/cache/openclip`,
+and a host with neither variable retains `.cache/openclip`.
+
+All **13 settings checks passed**, including four new path/override checks. The
+production image passed actual non-root named-volume writes, persistence in a
+second container, and genuine offline CLIP inference through Compose's cache path.
+Test volumes were removed and the real checkpoint retained. Docker ran out of
+disk space during the first image build and left a damaged layer; the corrected
+build removes **743.3 MiB** of installer cache before export, and the damaged
+task-owned build records were cleaned up. No shared Compose file was changed.
 
 ## Kafka event envelope validation
 

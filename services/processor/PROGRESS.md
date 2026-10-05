@@ -23,7 +23,8 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | Transactional ready/completed states | Implemented, verified, pushed | Commit `a6b8913`; 133 focused checks pass, including missing frame rejection and rollback of both states/duration/pruning |
 | Transactional failed states | Implemented, verified, pushed | Commit `74c4de1`; 151 focused checks pass, including failure rollback, retry completion, and protection of newer jobs |
 | Connected real video indexing operation | Implemented, verified, pushed | Commit `27bd084`; 154 focused live checks pass, including actual ready indexing, interrupted upload recovery, and corrupt MP4 rejection |
-| Frozen Kafka event envelope validation | Implemented, verified | 41 focused checks pass; no broker consumption or acknowledgment yet |
+| Frozen Kafka event envelope validation | Implemented, verified, pushed | Commit `94bd191`; 41 focused checks pass; no broker consumption or acknowledgment yet |
+| Persistent model cache matching shared Compose | Implemented, verified | 13 settings checks, non-root named-volume persistence, and real offline CLIP inference pass |
 | Kafka consumption, bounded retries and recovery | Planned | Not run |
 | Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
 
@@ -329,10 +330,32 @@ Only successfully executed checks will be marked verified here.
   container/Kafka verification awaits more host disk space. Existing checkpoint
   weights remain intact and unrelated projects have not been started.
 
+## Shared Compose cache compatibility checkpoint
+
+- Adopted `XDG_CACHE_HOME/openclip` when MODEL_CACHE_DIR is not explicitly set.
+  Standalone Docker defaults to `/cache/openclip`; shared Compose defaults to
+  its existing `/model-cache/openclip` volume. Host default remains unchanged.
+  Image creates the Compose directory with UID 10001 ownership. No A-owned file
+  changed; root credentials/environment defaults remain Developer 1's contracts.
+- **13 settings tests passed**, including four new path/override guards. Actual
+  production-image named-volume writes passed as UID 10001 and survived a second
+  container. Genuine offline CLIP text inference passed with the existing weights
+  at Compose's cache path, without MODEL_CACHE_DIR override. Test volume removed.
+- Docker ran out of disk space and shut down during the first build. After user
+  cleanup/restart, import checks exposed empty source files and a corrupt torch
+  dependency layer in that failed image. Rebuilt the affected layer and cleared
+  uv's installer cache before export (743.3 MiB), then passed real inference.
+- Removed only the identified corrupt FrameSearch image/cache records and our
+  completed disposable MinIO compiler cache. Built MinIO image, checkpoint weights,
+  application volumes, and unrelated project caches were retained. Host free
+  space after targeted cleanup: approximately 3.3 GiB. No Metro container started.
+- Ruff, formatting, and whitespace checks pass. Job policy is a separate feature;
+  Kafka broker/offset/lifecycle and public end-to-end tests remain pending.
+
 ## Remaining sequence
 
-1. Match the processor model cache to the shared Compose volume.
-2. Kafka consumption, bounded retries, offset handling, and service lifecycle.
+1. Bounded single-job retries and durable terminal outcome handling.
+2. Kafka consumption, offset handling, and service lifecycle.
 3. Real backend/processor end-to-end smoke test using the shared infrastructure.
 4. Frontend upload, search, and playback, after the backend integration works.
 
