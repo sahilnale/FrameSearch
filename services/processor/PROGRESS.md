@@ -24,8 +24,9 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | Transactional failed states | Implemented, verified, pushed | Commit `74c4de1`; 151 focused checks pass, including failure rollback, retry completion, and protection of newer jobs |
 | Connected real video indexing operation | Implemented, verified, pushed | Commit `27bd084`; 154 focused live checks pass, including actual ready indexing, interrupted upload recovery, and corrupt MP4 rejection |
 | Frozen Kafka event envelope validation | Implemented, verified, pushed | Commit `94bd191`; 41 focused checks pass; no broker consumption or acknowledgment yet |
-| Persistent model cache matching shared Compose | Implemented, verified | 13 settings checks, non-root named-volume persistence, and real offline CLIP inference pass |
-| Kafka consumption, bounded retries and recovery | Planned | Not run |
+| Persistent model cache matching shared Compose | Implemented, verified, pushed | Commit `a096699`; 13 settings checks, non-root named-volume persistence, and real offline CLIP inference pass |
+| Bounded single-job retries and durable outcomes | Implemented, verified | 24 policy checks and three actual queued-event pipeline checks; 235 focused live checks pass |
+| Kafka consumption, offset handling and lifecycle | Planned | Not run |
 | Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
 
 This file is Developer 2-owned. Developer 1 maintains the root progress document.
@@ -352,12 +353,35 @@ Only successfully executed checks will be marked verified here.
 - Ruff, formatting, and whitespace checks pass. Job policy is a separate feature;
   Kafka broker/offset/lifecycle and public end-to-end tests remain pending.
 
+## Single-job retry policy checkpoint
+
+- Added `JobProcessor` separately from Kafka consumption. Claims once, retries
+  the same receipt up to three attempts with interruptible one/two-second backoff,
+  and returns only confirmed completed/failed/already-terminal outcomes. Invalid
+  media fails immediately; infrastructure exhaustion stores a bounded public
+  reason while private exception details stay in logs.
+- Busy/missing jobs, stale claims, unsuccessful/ambiguous database commits, and
+  interrupted retries cannot return an acknowledgment outcome. Failed active jobs
+  remain subject to Go's existing manual retry/recovery; there is no lease or
+  second queue. Local retries do not increment the DB claim attempt count.
+- **24 policy checks passed** (1.95 seconds). Three real checks cover a queued
+  upload completing, duplicate handling without new frames, transient thumbnail
+  PUT interruption followed by completion, and actual corrupt-MP4 failure.
+- Focused live regression: **235 passed, no skips** (13.68 seconds), against
+  PostgreSQL 17/pgvector 0.8.0 as pinned in shared Compose, actual private MinIO,
+  FFmpeg, and genuine cached CPU CLIP. Production/dev images build; packaged
+  imports and database smoke pass as UID 10001 without application source mounts.
+  Disposable containers/network and test-owned objects/rows/triggers were removed.
+- Host regression: **280 passed, 121 skipped** (4.03 seconds). Ruff, formatting,
+  offline lockfile validation, and whitespace checks pass. No Developer 1 files
+  changed and no unrelated project service started. Kafka offsets and the shared
+  HTTP/worker lifecycle remain separate checkpoints.
+
 ## Remaining sequence
 
-1. Bounded single-job retries and durable terminal outcome handling.
-2. Kafka consumption, offset handling, and service lifecycle.
-3. Real backend/processor end-to-end smoke test using the shared infrastructure.
-4. Frontend upload, search, and playback, after the backend integration works.
+1. Kafka consumption, offset handling, and service lifecycle.
+2. Real backend/processor end-to-end smoke test using the shared infrastructure.
+3. Frontend upload, search, and playback, after the backend integration works.
 
 Each feature remains a separate tested commit and is pushed at its checkpoint.
 Full end-to-end functionality is not yet implemented.

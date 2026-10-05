@@ -6,8 +6,9 @@ HTTP service, FFprobe upload validation, timestamped FFmpeg frame extraction,
 and private source/thumbnail transfers through MinIO's S3 API. PostgreSQL
 connections, atomic job claims, and retry-safe frame writes are verified against
 the shared schema, including transactional success and failure finalization.
-These stages are connected by a real video indexing operation. Kafka consumption
-and the ingestion worker lifecycle are subsequent features.
+These stages are connected by a real video indexing operation with bounded
+single-job retries and durable terminal outcomes. Kafka consumption and the
+ingestion worker lifecycle are subsequent features.
 
 ## Install and test the embedding core
 
@@ -577,6 +578,43 @@ Parsing does not touch the database or acknowledge a message. A malformed event
 does not identify a trustworthy job to mark failed, so the future consumer must
 keep it unacknowledged and report the problem. This checkpoint adds no broker
 dependency or consumer loop. All **41 focused checks passed** (0.02 seconds).
+
+## Single-job retry policy
+
+`JobProcessor(database, indexer, stop_event=...).process(event)` claims a queued
+event's job once and runs up to three indexing attempts with interruptible
+one- and two-second backoffs. Retries reuse the claim and stable frame/object
+keys; `attempt_count` tracks database claims, not individual local attempts.
+The indexer uses the same already-loaded model as HTTP inference.
+
+Successful indexing returns `completed` only after its ready/completed commit.
+Invalid MP4s fail immediately with a bounded actionable reason. Exhausted storage,
+media-tool, or inference errors return `failed` only after both failed states
+commit. Existing completed/failed jobs return `terminal` without reindexing.
+Only these returned outcomes may be acknowledged by the later Kafka caller.
+
+Busy/missing jobs, stale claims, database errors without a confirmed terminal
+commit, and interrupted retry backoff raise instead. They must remain
+unacknowledged. An interrupted job remains processing; stop the sole processor
+before using Go's reconciliation command to recover it. A lost commit response
+can leave an already-terminal job pending; redelivery checks its durable state.
+This policy does not consume Kafka or create a second model/worker.
+
+```sh
+uv run --frozen pytest -q tests/test_jobs.py
+# With disposable PostgreSQL/MinIO and cached real weights configured:
+FRAMESEARCH_DATABASE_TEST=1 FRAMESEARCH_MINIO_TEST=1 \
+  FRAMESEARCH_REAL_MODEL_TEST=1 HF_HUB_OFFLINE=1 \
+  uv run --frozen pytest -q tests/test_job_processing.py
+```
+
+The 24 policy checks pass, and three actual pipeline checks verify queued-to-ready
+completion, duplicate handling, a transient thumbnail upload followed by successful
+retry, and immediate corrupt-upload failure. The focused live regression suite
+passed **235 tests, no skips** (13.68 seconds) using PostgreSQL 17/pgvector 0.8.0,
+matching shared Compose, plus actual MinIO/FFmpeg/cached CPU CLIP. Packaged import
+and database checks pass as UID 10001. Host regression: **280 passed, 121 skipped**
+(4.03 seconds); opt-in integration/tooling checks account for the skips.
 
 ## Integration notes for Developer 1
 
