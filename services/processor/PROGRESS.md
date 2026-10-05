@@ -26,8 +26,9 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | Frozen Kafka event envelope validation | Implemented, verified, pushed | Commit `94bd191`; 41 focused checks pass; no broker consumption or acknowledgment yet |
 | Persistent model cache matching shared Compose | Implemented, verified, pushed | Commit `a096699`; 13 settings checks, non-root named-volume persistence, and real offline CLIP inference pass |
 | Bounded single-job retries and durable outcomes | Implemented, verified, pushed | Commit `04f35db`; 24 policy checks and three actual queued-event pipeline checks; 235 focused live checks pass |
-| Pinned Kafka client and shared configuration | Implemented, verified | 34 Kafka configuration checks; 62 focused configuration checks pass; native consumer constructs/closes |
-| Kafka consumption, offset handling and lifecycle | Planned | Not run |
+| Pinned Kafka client and shared configuration | Implemented, verified, pushed | Commit `8e029ad`; 34 Kafka configuration checks; 62 focused configuration checks pass; native consumer constructs/closes |
+| Kafka consumer with manual offset commits | Implemented, verified | 32 adapter checks and three real Kafka 3.9 redelivery/offset/topic checks; 134 focused checks pass |
+| Kafka-to-job loop and HTTP/worker lifecycle | Planned | Not run |
 | Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
 
 This file is Developer 2-owned. Developer 1 maintains the root progress document.
@@ -392,9 +393,33 @@ Only successfully executed checks will be marked verified here.
   No broker subscription, offset handling, HTTP lifecycle, or shared file changes
   are included. Kafka 3.9.0, matching Compose, is cached for subsequent real tests.
 
+## Manual Kafka consumer checkpoint
+
+- Added `UploadConsumer` with one pending record, bounded polling/prefetch,
+  disabled automatic offset storage/commit/topic creation, and the classic group
+  protocol for shared Kafka 3.9. Checks existing topic metadata before subscription.
+  Rejects another poll until the pending record's synchronous next-offset commit
+  is confirmed, including each returned partition error and exact coordinates.
+- **32 adapter unit checks pass**, covering receive/start/commit failures,
+  unexpected message coordinates, acknowledgment ordering, and idempotent close.
+  Three actual broker checks prove replay after unacknowledged close, committed
+  restart at the next event, and no automatic creation of an unknown topic.
+- `python services/processor/tests/run_kafka_tests.py`: **134 passed, no skips**
+  (5.77 seconds), using shared Kafka 3.9.0 with internal networking/no published
+  ports. Test-owned topics/groups and disposable containers/network were removed.
+  Standard production and dev images build. Packaged native consumer and genuine
+  offline CLIP inference pass as UID 10001 without application source mounts.
+- Full host suite: **346 passed, 124 skipped** (4.42 seconds). Ruff, formatting,
+  offline lockfile validation, and whitespace checks pass. No shared files changed.
+  Removed only 16 obsolete task-created processor image tags and their three
+  identified old dependency-cache trees; host free space recovered to about 15 GiB
+  before rebuilding. No application volumes or unrelated services were modified.
+- Adapter does not yet call `JobProcessor` or run during HTTP service lifespan;
+  those are subsequent independent checkpoints. No full public API smoke yet.
+
 ## Remaining sequence
 
-1. Kafka consumption, offset handling, and service lifecycle.
+1. Kafka-to-job loop and service lifecycle.
 2. Real backend/processor end-to-end smoke test using the shared infrastructure.
 3. Frontend upload, search, and playback, after the backend integration works.
 
