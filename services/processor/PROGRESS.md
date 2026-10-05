@@ -33,6 +33,8 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | Complete processor/AI regression | Verified, pushed | Commit `02a95cc`; 506 passed, zero skips; all live media/model/storage/database/Kafka/HTTP checks enabled |
 | Original labeled demo clips | Implemented, verified, pushed | Commit `4f5738f`; three real H.264 clips validate and sample at 0/3000/6000 ms; five prewritten labels |
 | Tiny synthetic semantic evaluation | Verified | Real packaged service indexes nine frames; all five queries rank the expected clip first; Recall@5 5/5 |
+| Licensed real-footage fixtures | Implemented, verified, pushed | Commit `8997c00`; three hash-pinned Commons recordings, credited 18-second MP4 excerpts, nine labels committed before inference |
+| Real-footage semantic evaluation | Verified | All nine queries find correct video first; relevant moment first in 7/9 and in top five in 9/9; actual pipeline over 18 frames |
 | Public Go end-to-end smoke | Deferred by user | Public upload/retry/search/playback and shared Compose remain unverified |
 
 This file is Developer 2-owned. Developer 1 maintains the root progress document.
@@ -496,6 +498,19 @@ clips/nine frames. Results are in `evaluations/generated-shapes-v1.json`; this
 does not establish accuracy on real footage. Test-owned resources were removed.
 Host regression: **375 passed, 132 skipped** (6.60 seconds); all live components
 were explicitly enabled for the separate full regression and semantic runs.
+
+The user requested actual online footage next. Three licensed Commons recordings
+were downloaded with pinned source hashes, converted into credited real MP4
+excerpts, and visually inspected before nine query/time labels were committed.
+The same real-stack evaluator passed in **7.88 seconds**, with video accuracy
+**9/9**, first relevant-frame accuracy **7/9**, and any relevant frame in the
+top five **9/9**. Two first-frame misses remain: yellow-front train selects 6 s;
+empty platform selects 9 s when the train is approaching. Mean frame Recall@5
+**85.2%**, Precision@5 **82.2%**; metrics and raw scores are recorded in
+`evaluations/commons-real-v1.json` and `VERIFICATION.md`. No post-result label,
+query, model, or production ranking changes were made. Generated compatibility
+also passed (7.40 seconds). Host regression **375 passed, 132 skipped** (4.38
+seconds); lint/format/offline lock checks pass; disposable resources cleaned.
 
 1. Real backend/processor end-to-end smoke test using the shared infrastructure.
 2. Frontend upload, search, and playback, after the backend integration works.

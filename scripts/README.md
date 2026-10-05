@@ -74,3 +74,15 @@ The nine labels in `real-footage-labels.json` were written after inspecting actu
 sampled frames and before model inference. They include both an empty railway
 platform and the train appearing later in that same clip. The relevant timestamps
 let evaluation distinguish finding the right video from finding the right moment.
+
+After preparation, run the real processor evaluation:
+
+```sh
+python services/processor/tests/run_kafka_tests.py --indexing --semantic --real-footage --skip-build
+```
+
+It verifies prepared file hashes and uses cached clips without network downloads
+during tests. The result JSON includes each top-five match with its timestamp and
+raw cosine similarity, plus both video and relevant-frame metrics. Recorded
+observations are in `services/processor/evaluations/commons-real-v1.json`; the two
+first-frame misses and scope are explained in `services/processor/VERIFICATION.md`.

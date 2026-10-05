@@ -1,0 +1,466 @@
+{
+  "clip_count": 3,
+  "command": "python services/processor/tests/run_kafka_tests.py --indexing --semantic --real-footage --skip-build",
+  "dataset": "framesearch-commons-real-v1",
+  "evaluated_on": "2026-10-07",
+  "fixture_commit": "8997c00",
+  "frame_count": 18,
+  "frame_hit_definition": "Any labeled relevant frame among top five results",
+  "frame_hit_rate_at_5": 1.0,
+  "frame_precision_at_5": 0.8222222222222223,
+  "frame_recall_at_5": 0.8518518518518519,
+  "frame_recall_definition": "Mean fraction of labeled relevant frames in top five",
+  "labeling": "Queries and relevant sampled timestamps fixed after visual inspection and before CLIP inference. Timestamps are relative to the prepared 18-second excerpts.",
+  "model_version": "ViT-B-32:laion2b_s34b_b79k",
+  "processor_lifecycle_commit": "0927c2f",
+  "query_count": 9,
+  "recall_at_5": 1.0,
+  "recall_definition": "Expected clip present among the top five frame results",
+  "results": [
+    {
+      "expected_clip": "puppy-indoors",
+      "expected_timestamp_ms": [
+        0,
+        3000,
+        6000,
+        9000,
+        12000,
+        15000
+      ],
+      "frame_hit_at_5": true,
+      "frame_precision_at_5": 1.0,
+      "frame_recall_at_5": 0.8333333333333334,
+      "hit_at_5": true,
+      "matches": [
+        {
+          "clip": "puppy-indoors",
+          "similarity": 0.3022428154945396,
+          "timestamp_ms": 0
+        },
+        {
+          "clip": "puppy-indoors",
+          "similarity": 0.27809698712247743,
+          "timestamp_ms": 15000
+        },
+        {
+          "clip": "puppy-indoors",
+          "similarity": 0.2740302518588159,
+          "timestamp_ms": 12000
+        },
+        {
+          "clip": "puppy-indoors",
+          "similarity": 0.2651498895704878,
+          "timestamp_ms": 6000
+        },
+        {
+          "clip": "puppy-indoors",
+          "similarity": 0.26437775704993305,
+          "timestamp_ms": 9000
+        }
+      ],
+      "text": "a puppy playing indoors",
+      "top1_correct": true,
+      "top1_frame_correct": true
+    },
+    {
+      "expected_clip": "puppy-indoors",
+      "expected_timestamp_ms": [
+        0,
+        3000,
+        6000,
+        9000,
+        12000,
+        15000
+      ],
+      "frame_hit_at_5": true,
+      "frame_precision_at_5": 1.0,
+      "frame_recall_at_5": 0.8333333333333334,
+      "hit_at_5": true,
+      "matches": [
+        {
+          "clip": "puppy-indoors",
+          "similarity": 0.28402285075051537,
+          "timestamp_ms": 12000
+        },
+        {
+          "clip": "puppy-indoors",
+          "similarity": 0.27050542586977167,
+          "timestamp_ms": 6000
+        },
+        {
+          "clip": "puppy-indoors",
+          "similarity": 0.2683126170448894,
+          "timestamp_ms": 9000
+        },
+        {
+          "clip": "puppy-indoors",
+          "similarity": 0.2656000396251659,
+          "timestamp_ms": 15000
+        },
+        {
+          "clip": "puppy-indoors",
+          "similarity": 0.2651075720787067,
+          "timestamp_ms": 0
+        }
+      ],
+      "text": "a dog on a tiled floor",
+      "top1_correct": true,
+      "top1_frame_correct": true
+    },
+    {
+      "expected_clip": "puppy-indoors",
+      "expected_timestamp_ms": [
+        0,
+        3000,
+        6000,
+        9000,
+        12000,
+        15000
+      ],
+      "frame_hit_at_5": true,
+      "frame_precision_at_5": 1.0,
+      "frame_recall_at_5": 0.8333333333333334,
+      "hit_at_5": true,
+      "matches": [
+        {
+          "clip": "puppy-indoors",
+          "similarity": 0.2981262682751582,
+          "timestamp_ms": 0
+        },
+        {
+          "clip": "puppy-indoors",
+          "similarity": 0.25906985998153687,
+          "timestamp_ms": 12000
+        },
+        {
+          "clip": "puppy-indoors",
+          "similarity": 0.256397202992273,
+          "timestamp_ms": 3000
+        },
+        {
+          "clip": "puppy-indoors",
+          "similarity": 0.23669129610061646,
+          "timestamp_ms": 15000
+        },
+        {
+          "clip": "puppy-indoors",
+          "similarity": 0.23272114992141724,
+          "timestamp_ms": 9000
+        }
+      ],
+      "text": "a small brown dog in a room with green walls",
+      "top1_correct": true,
+      "top1_frame_correct": true
+    },
+    {
+      "expected_clip": "park-waterfall",
+      "expected_timestamp_ms": [
+        0,
+        3000,
+        6000,
+        9000,
+        12000,
+        15000
+      ],
+      "frame_hit_at_5": true,
+      "frame_precision_at_5": 1.0,
+      "frame_recall_at_5": 0.8333333333333334,
+      "hit_at_5": true,
+      "matches": [
+        {
+          "clip": "park-waterfall",
+          "similarity": 0.30122290246350636,
+          "timestamp_ms": 12000
+        },
+        {
+          "clip": "park-waterfall",
+          "similarity": 0.29717693056074734,
+          "timestamp_ms": 15000
+        },
+        {
+          "clip": "park-waterfall",
+          "similarity": 0.2940099572530459,
+          "timestamp_ms": 6000
+        },
+        {
+          "clip": "park-waterfall",
+          "similarity": 0.2903645288509713,
+          "timestamp_ms": 9000
+        },
+        {
+          "clip": "park-waterfall",
+          "similarity": 0.28818863175051046,
+          "timestamp_ms": 3000
+        }
+      ],
+      "text": "a waterfall flowing over rocks",
+      "top1_correct": true,
+      "top1_frame_correct": true
+    },
+    {
+      "expected_clip": "park-waterfall",
+      "expected_timestamp_ms": [
+        0,
+        3000,
+        6000,
+        9000,
+        12000,
+        15000
+      ],
+      "frame_hit_at_5": true,
+      "frame_precision_at_5": 1.0,
+      "frame_recall_at_5": 0.8333333333333334,
+      "hit_at_5": true,
+      "matches": [
+        {
+          "clip": "park-waterfall",
+          "similarity": 0.32519507480904153,
+          "timestamp_ms": 6000
+        },
+        {
+          "clip": "park-waterfall",
+          "similarity": 0.3235779316928491,
+          "timestamp_ms": 9000
+        },
+        {
+          "clip": "park-waterfall",
+          "similarity": 0.3221622119400944,
+          "timestamp_ms": 15000
+        },
+        {
+          "clip": "park-waterfall",
+          "similarity": 0.317225427875633,
+          "timestamp_ms": 0
+        },
+        {
+          "clip": "park-waterfall",
+          "similarity": 0.3169832636724008,
+          "timestamp_ms": 12000
+        }
+      ],
+      "text": "a garden with trees and cascading water",
+      "top1_correct": true,
+      "top1_frame_correct": true
+    },
+    {
+      "expected_clip": "park-waterfall",
+      "expected_timestamp_ms": [
+        0,
+        3000,
+        6000,
+        9000,
+        12000,
+        15000
+      ],
+      "frame_hit_at_5": true,
+      "frame_precision_at_5": 1.0,
+      "frame_recall_at_5": 0.8333333333333334,
+      "hit_at_5": true,
+      "matches": [
+        {
+          "clip": "park-waterfall",
+          "similarity": 0.3171894644853315,
+          "timestamp_ms": 0
+        },
+        {
+          "clip": "park-waterfall",
+          "similarity": 0.3161099349293095,
+          "timestamp_ms": 6000
+        },
+        {
+          "clip": "park-waterfall",
+          "similarity": 0.31508132815361023,
+          "timestamp_ms": 9000
+        },
+        {
+          "clip": "park-waterfall",
+          "similarity": 0.31343191862106323,
+          "timestamp_ms": 3000
+        },
+        {
+          "clip": "park-waterfall",
+          "similarity": 0.31029571027444947,
+          "timestamp_ms": 15000
+        }
+      ],
+      "text": "a small stream running between rocks and plants",
+      "top1_correct": true,
+      "top1_frame_correct": true
+    },
+    {
+      "expected_clip": "passenger-train",
+      "expected_timestamp_ms": [
+        9000,
+        12000,
+        15000
+      ],
+      "frame_hit_at_5": true,
+      "frame_precision_at_5": 0.4,
+      "frame_recall_at_5": 0.6666666666666666,
+      "hit_at_5": true,
+      "matches": [
+        {
+          "clip": "passenger-train",
+          "similarity": 0.30971861808654644,
+          "timestamp_ms": 9000
+        },
+        {
+          "clip": "passenger-train",
+          "similarity": 0.3018056187820247,
+          "timestamp_ms": 12000
+        },
+        {
+          "clip": "passenger-train",
+          "similarity": 0.3003970474123183,
+          "timestamp_ms": 0
+        },
+        {
+          "clip": "passenger-train",
+          "similarity": 0.2973863120173794,
+          "timestamp_ms": 6000
+        },
+        {
+          "clip": "passenger-train",
+          "similarity": 0.28960385136673383,
+          "timestamp_ms": 3000
+        }
+      ],
+      "text": "a passenger train next to a station platform",
+      "top1_correct": true,
+      "top1_frame_correct": true
+    },
+    {
+      "expected_clip": "passenger-train",
+      "expected_timestamp_ms": [
+        9000,
+        12000
+      ],
+      "frame_hit_at_5": true,
+      "frame_precision_at_5": 0.4,
+      "frame_recall_at_5": 1.0,
+      "hit_at_5": true,
+      "matches": [
+        {
+          "clip": "passenger-train",
+          "similarity": 0.24434424869349625,
+          "timestamp_ms": 6000
+        },
+        {
+          "clip": "passenger-train",
+          "similarity": 0.24362107385334686,
+          "timestamp_ms": 9000
+        },
+        {
+          "clip": "passenger-train",
+          "similarity": 0.2427456519300527,
+          "timestamp_ms": 3000
+        },
+        {
+          "clip": "passenger-train",
+          "similarity": 0.2420419829475342,
+          "timestamp_ms": 0
+        },
+        {
+          "clip": "passenger-train",
+          "similarity": 0.23238529747505465,
+          "timestamp_ms": 12000
+        }
+      ],
+      "text": "a train with a yellow front",
+      "top1_correct": true,
+      "top1_frame_correct": false
+    },
+    {
+      "expected_clip": "passenger-train",
+      "expected_timestamp_ms": [
+        0,
+        3000,
+        6000
+      ],
+      "frame_hit_at_5": true,
+      "frame_precision_at_5": 0.6,
+      "frame_recall_at_5": 1.0,
+      "hit_at_5": true,
+      "matches": [
+        {
+          "clip": "passenger-train",
+          "similarity": 0.3248011485097744,
+          "timestamp_ms": 9000
+        },
+        {
+          "clip": "passenger-train",
+          "similarity": 0.32281691024001113,
+          "timestamp_ms": 0
+        },
+        {
+          "clip": "passenger-train",
+          "similarity": 0.3200955295534287,
+          "timestamp_ms": 6000
+        },
+        {
+          "clip": "passenger-train",
+          "similarity": 0.31688373336542575,
+          "timestamp_ms": 3000
+        },
+        {
+          "clip": "passenger-train",
+          "similarity": 0.20615583658218528,
+          "timestamp_ms": 12000
+        }
+      ],
+      "text": "an empty railway platform with no train",
+      "top1_correct": true,
+      "top1_frame_correct": false
+    }
+  ],
+  "scope": "Small manually labeled real-footage sanity check; not a representative benchmark",
+  "sources": [
+    {
+      "author": "Subhashish Panigrahi",
+      "author_url": "https://commons.wikimedia.org/wiki/User:Psubhashish",
+      "download_url": "https://upload.wikimedia.org/wikipedia/commons/2/21/Puppy_playing.webm",
+      "filename": "puppy-indoors.mp4",
+      "id": "puppy-indoors",
+      "license": "CC BY-SA 3.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+      "prepared_sha256": "44d681a685fbc8717af2885482590f3980ecba1d488dcb491c22210ae63d8e30",
+      "prepared_size_bytes": 744082,
+      "size_bytes": 13009833,
+      "source_page": "https://commons.wikimedia.org/wiki/File:Puppy_playing.webm",
+      "source_sha1": "733210c6cc9a1c2d54b93011b164cbbc1f2e10d8",
+      "title": "Puppy playing.webm"
+    },
+    {
+      "author": "Editor",
+      "author_url": "https://www.youtube.com/user/Editor",
+      "download_url": "https://upload.wikimedia.org/wikipedia/commons/b/b5/Small_waterfall.webm",
+      "filename": "park-waterfall.mp4",
+      "id": "park-waterfall",
+      "license": "CC BY 3.0",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "prepared_sha256": "2a22b54c1e649c128ea2a4bcf976532896bffe1b679869f21495db9e6edbd20d",
+      "prepared_size_bytes": 976056,
+      "size_bytes": 18429839,
+      "source_page": "https://commons.wikimedia.org/wiki/File:Small_waterfall.webm",
+      "source_sha1": "c4da5bbbc9ef37e05b2ae7c876563594ab2908dc",
+      "title": "Small waterfall.webm"
+    },
+    {
+      "author": "Elliott Brown",
+      "author_url": "https://www.flickr.com/photos/ell-r-brown/",
+      "download_url": "https://upload.wikimedia.org/wikipedia/commons/e/ea/Cross_Country_Train_220005_at_Burton-on-Trent_station_-_HD_video_clip.webm",
+      "filename": "passenger-train.mp4",
+      "id": "passenger-train",
+      "license": "CC BY-SA 2.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/2.0/",
+      "prepared_sha256": "596d1378e7bc17af445b0bb225ef3ce71063b6787eb6d47923712a7201944252",
+      "prepared_size_bytes": 931617,
+      "size_bytes": 11309829,
+      "source_page": "https://commons.wikimedia.org/wiki/File:Cross_Country_Train_220005_at_Burton-on-Trent_station_-_HD_video_clip.webm",
+      "source_sha1": "ca65e975bb547ea7fd57a510f6bd9d4b8910e645",
+      "title": "Cross Country Train 220005 at Burton-on-Trent station - HD video clip.webm"
+    }
+  ],
+  "top1_accuracy": 1.0,
+  "top1_frame_accuracy": 0.7777777777777778
+}

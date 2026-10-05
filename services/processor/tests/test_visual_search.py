@@ -1,13 +1,17 @@
-"""Labeled synthetic relevance through real Kafka/CLIP/HTTP/MinIO/pgvector."""
+"""Labeled generated/real-footage relevance through the genuine processor stack."""
 
+import hashlib
 import json
 import math
+import os
 from datetime import UTC, datetime
+from pathlib import Path
 from time import monotonic, sleep
 from uuid import uuid4
 
 import pytest
 from create_demo_clips import create_clips
+from prepare_real_clips import SOURCES
 from test_frame_persistence import persisted
 from test_job_claims import states
 from test_kafka_integration import kafka_settings as kafka_settings
@@ -20,9 +24,31 @@ from framesearch_processor.events import MediaUploaded
 from framesearch_processor.settings import MODEL_VERSION
 
 
+def evaluation_dataset(tmp_path):
+    configured = os.getenv("FRAMESEARCH_REAL_FOOTAGE_DIR")
+    if not configured:
+        path = tmp_path / "dataset"
+        return path, create_clips(path)
+    path = Path(configured)
+    dataset = json.loads((path / "sources.json").read_text())
+    pinned = json.loads(SOURCES.read_text())
+    labels = json.loads(SOURCES.with_name("real-footage-labels.json").read_text())
+    assert dataset["dataset"] == pinned["dataset"] == labels["dataset"]
+    assert dataset["duration_seconds"] == pinned["duration_seconds"]
+    assert len(dataset["clips"]) == len(pinned["clips"])
+    for actual, expected in zip(dataset["clips"], pinned["clips"], strict=True):
+        assert {key: actual[key] for key in expected} == expected
+        source = path / actual["filename"]
+        assert source.stat().st_size == actual["prepared_size_bytes"]
+        with source.open("rb") as stream:
+            assert hashlib.file_digest(stream, "sha256").hexdigest() == actual["prepared_sha256"]
+    dataset.update(labels)
+    return path, dataset
+
+
 def test_labeled_clips_rank_from_real_http_embeddings(database, minio, kafka_settings, tmp_path):
-    dataset_path = tmp_path / "dataset"
-    dataset = create_clips(dataset_path)
+    dataset_path, dataset = evaluation_dataset(tmp_path)
+    timestamps = list(range(0, math.ceil(dataset["duration_seconds"] * 1000), 3000))
     store, storage = minio
     video_ids = []
     clips_by_video = {}
@@ -70,7 +96,7 @@ def test_labeled_clips_rank_from_real_http_embeddings(database, minio, kafka_set
                 assert status["video_status"] == "ready" and status["job_status"] == "completed"
                 assert status["attempt_count"] == 1
                 rows = persisted(database, event.video_id)
-                assert [row["timestamp_ms"] for row in rows] == [0, 3000, 6000]
+                assert [row["timestamp_ms"] for row in rows] == timestamps
                 for row in rows:
                     assert row["dimensions"] == 512 and row["norm"] == pytest.approx(1, abs=1e-6)
                     store._client.head_object(Bucket=storage.bucket, Key=row["thumbnail_key"])
@@ -110,6 +136,15 @@ def test_labeled_clips_rank_from_real_http_embeddings(database, minio, kafka_set
                     for match in matches
                 ]
                 assert all(math.isfinite(match["similarity"]) for match in ranked)
+                expected_times = query.get("expected_timestamp_ms", timestamps)
+                assert expected_times and set(expected_times) <= set(timestamps)
+
+                relevant = [
+                    match["clip"] == query["expected_clip"]
+                    and match["timestamp_ms"] in expected_times
+                    for match in ranked
+                ]
+
                 results.append(
                     {
                         **query,
@@ -117,6 +152,10 @@ def test_labeled_clips_rank_from_real_http_embeddings(database, minio, kafka_set
                         "hit_at_5": any(
                             match["clip"] == query["expected_clip"] for match in ranked
                         ),
+                        "top1_frame_correct": relevant[0],
+                        "frame_hit_at_5": any(relevant),
+                        "frame_recall_at_5": sum(relevant) / len(expected_times),
+                        "frame_precision_at_5": sum(relevant) / len(ranked),
                         "matches": ranked,
                     }
                 )
@@ -124,14 +163,33 @@ def test_labeled_clips_rank_from_real_http_embeddings(database, minio, kafka_set
                 "dataset": dataset["dataset"],
                 "model_version": MODEL_VERSION,
                 "clip_count": len(events),
-                "frame_count": 3 * len(events),
+                "frame_count": len(timestamps) * len(events),
                 "query_count": len(results),
                 "top1_accuracy": sum(result["top1_correct"] for result in results) / len(results),
                 "recall_at_5": sum(result["hit_at_5"] for result in results) / len(results),
                 "recall_definition": "Expected clip present among the top five frame results",
-                "scope": "Synthetic sanity check; no statistical claim about real footage",
+                "top1_frame_accuracy": (
+                    sum(result["top1_frame_correct"] for result in results) / len(results)
+                ),
+                "frame_hit_rate_at_5": (
+                    sum(result["frame_hit_at_5"] for result in results) / len(results)
+                ),
+                "frame_recall_at_5": (
+                    sum(result["frame_recall_at_5"] for result in results) / len(results)
+                ),
+                "frame_precision_at_5": (
+                    sum(result["frame_precision_at_5"] for result in results) / len(results)
+                ),
+                "frame_hit_definition": "Any labeled relevant frame among top five results",
+                "frame_recall_definition": "Mean fraction of labeled relevant frames in top five",
+                "scope": dataset.get(
+                    "scope", "Synthetic sanity check; no statistical claim about real footage"
+                ),
                 "results": results,
             }
+            if "labeling" in dataset:
+                report["labeling"] = dataset["labeling"]
+                report["sources"] = dataset["clips"]
             print("VISUAL_SEARCH_RESULT " + json.dumps(report, sort_keys=True), flush=True)
             # Record misses honestly; this is an evaluation, not an accuracy threshold gate.
             assert list(temporary.iterdir()) == []
