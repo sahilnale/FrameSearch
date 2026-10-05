@@ -20,9 +20,16 @@ def main():
     parser.add_argument(
         "--full", action="store_true", help="run every processor test; requires --indexing"
     )
+    parser.add_argument(
+        "--semantic",
+        action="store_true",
+        help="run only the labeled search check; requires --indexing",
+    )
     arguments = parser.parse_args()
-    if arguments.full and not arguments.indexing:
-        parser.error("--full requires --indexing to enable every live processor dependency")
+    if (arguments.full or arguments.semantic) and not arguments.indexing:
+        parser.error("--full/--semantic require --indexing to enable the live dependencies")
+    if arguments.full and arguments.semantic:
+        parser.error("choose either --full or --semantic")
     cache = PROCESSOR / ".cache/openclip"
     if arguments.indexing and not cache.is_dir():
         parser.error("cache real OpenCLIP weights before enabling --indexing")
@@ -181,6 +188,8 @@ def main():
             "/work",
             "--mount",
             f"type=bind,source={PROCESSOR},target=/work,readonly",
+            "--mount",
+            f"type=bind,source={PROCESSOR.parents[1] / 'scripts'},target=/scripts,readonly",
             "--env",
             "PYTHONDONTWRITEBYTECODE=1",
             "--env",
@@ -224,6 +233,8 @@ def main():
             selection += " tests/test_worker_integration.py tests/test_service_integration.py"
         if arguments.full:
             selection = ""
+        if arguments.semantic:
+            selection = "-s tests/test_visual_search.py"
         command.extend(
             [
                 TEST_IMAGE,

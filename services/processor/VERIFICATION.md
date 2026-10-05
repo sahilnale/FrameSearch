@@ -1,6 +1,7 @@
 # Processor and AI verification
 
 Branch: `codex/processor-core`. Service lifecycle checkpoint: `0927c2f`.
+Full regression checkpoint: `02a95cc`; fixture generator checkpoint: `4f5738f`.
 The public Go backend and frontend are excluded from this processor verification.
 
 ## Executed complete suite
@@ -9,7 +10,8 @@ The public Go backend and frontend are excluded from this processor verification
 python services/processor/tests/run_kafka_tests.py --indexing --full --skip-build
 ```
 
-**506 passed, zero skipped, 47.94 seconds.** This includes unit checks and every
+**506 passed, zero skipped, 47.94 seconds** at the full regression checkpoint.
+This includes unit checks and every
 opt-in real integration; it does not mean 506 end-to-end jobs. Production/dev
 images were built from the standard owned Dockerfiles before the run.
 
@@ -38,14 +40,55 @@ All test-owned rows, objects/private buckets, topics/groups, processes,
 containers, and network were cleaned up. No Developer 1 files or unrelated
 project services were modified.
 
+## Labeled visual-search evaluation
+
+```sh
+python services/processor/tests/run_kafka_tests.py --indexing --semantic --skip-build
+```
+
+**One live evaluation test passed in 10.66 seconds, zero skips.** Three original
+generated clips were indexed through the actual packaged service: Kafka event,
+private MinIO download, FFmpeg, real CPU CLIP, thumbnail transfers, pgvector,
+ready/completed state, then offset commit. Every clip has three sampled frames
+at 0, 3000, and 6000 ms. The HTTP text endpoint produced the real query vectors;
+exact SQL ranked the nine same-model frames from these three ready videos.
+This checks internal processor/retrieval behavior, not the public Go search API.
+
+The five labels were committed before running inference. None were changed
+after seeing the results. Raw observations are saved in
+`evaluations/generated-shapes-v1.json`.
+
+| Query | Expected / first result | First cosine score |
+| --- | --- | --- |
+| a red circle on a white background | red-circle | 0.3403 |
+| a round red shape | red-circle | 0.3786 |
+| a blue square on a white background | blue-square | 0.3238 |
+| a green triangle on a white background | green-triangle | 0.3723 |
+| a square blue shape | blue-square | 0.3558 |
+
+Top-1 video accuracy: **5/5 (100%)**. Recall@5: **5/5 (100%)**, defined as the
+expected clip appearing among the top five frame results. Each query has one
+expected clip. Scores are raw cosine similarities, not confidence probabilities.
+These simple synthetic shapes establish a basic sanity check, with no statistical
+claim about accuracy on real footage, complex scenes, or matching moments within
+a changing video. The evaluation records misses without treating a perfect score
+as a test requirement. The full runner now also includes this additional test.
+
+The source generator and labels are under `scripts/`; local generated MP4s and
+PNG previews are under `services/processor/.cache/demo-clips`. All live evaluation
+rows, objects/bucket, topic/group, process, containers, and network were removed.
+Host checks after adding the evaluation: **375 passed, 132 deliberately disabled
+live checks skipped** (6.60 seconds). Ruff and formatting pass for processor,
+tests, and the fixture script.
+
 ## Remaining scope
 
 - Public Go upload/complete/retry/search/playback and shared Compose smoke are
   deferred at the user's request. Internal tests seed queued jobs rather than
   submitting through the unfinished public backend integration.
 - Frontend work remains deferred until backend integration is ready.
-- Semantic relevance needs a separate labeled evaluation. Valid vectors and
-  successful retrieval do not by themselves establish ranking accuracy.
+- Real-footage relevance and matching a useful moment within changing scenes
+  remain unmeasured; the generated-shape results above cover only basic behavior.
 - Crash recovery relies on stopping the sole processor and using Go's queued/
   stale reconciliation. No claim lease, transactional outbox, DLQ, or exactly-once
   delivery is claimed.

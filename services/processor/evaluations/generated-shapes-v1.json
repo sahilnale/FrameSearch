@@ -1,0 +1,182 @@
+{
+  "clip_count": 3,
+  "command": "python services/processor/tests/run_kafka_tests.py --indexing --semantic --skip-build",
+  "dataset": "framesearch-generated-shapes-v1",
+  "evaluated_on": "2026-10-07",
+  "fixture_commit": "4f5738f",
+  "frame_count": 9,
+  "model_version": "ViT-B-32:laion2b_s34b_b79k",
+  "processor_lifecycle_commit": "0927c2f",
+  "query_count": 5,
+  "recall_at_5": 1.0,
+  "recall_definition": "Expected clip present among the top five frame results",
+  "results": [
+    {
+      "expected_clip": "red-circle",
+      "hit_at_5": true,
+      "matches": [
+        {
+          "clip": "red-circle",
+          "similarity": 0.34034313799996063,
+          "timestamp_ms": 3000
+        },
+        {
+          "clip": "red-circle",
+          "similarity": 0.3403430783953123,
+          "timestamp_ms": 6000
+        },
+        {
+          "clip": "red-circle",
+          "similarity": 0.3395048677921295,
+          "timestamp_ms": 0
+        },
+        {
+          "clip": "blue-square",
+          "similarity": 0.1938182644627423,
+          "timestamp_ms": 3000
+        },
+        {
+          "clip": "blue-square",
+          "similarity": 0.19381821641055952,
+          "timestamp_ms": 6000
+        }
+      ],
+      "text": "a red circle on a white background",
+      "top1_correct": true
+    },
+    {
+      "expected_clip": "red-circle",
+      "hit_at_5": true,
+      "matches": [
+        {
+          "clip": "red-circle",
+          "similarity": 0.378649681806567,
+          "timestamp_ms": 3000
+        },
+        {
+          "clip": "red-circle",
+          "similarity": 0.378649681806567,
+          "timestamp_ms": 6000
+        },
+        {
+          "clip": "red-circle",
+          "similarity": 0.37826905380075915,
+          "timestamp_ms": 0
+        },
+        {
+          "clip": "blue-square",
+          "similarity": 0.23734494968324982,
+          "timestamp_ms": 3000
+        },
+        {
+          "clip": "blue-square",
+          "similarity": 0.23734491912662692,
+          "timestamp_ms": 6000
+        }
+      ],
+      "text": "a round red shape",
+      "top1_correct": true
+    },
+    {
+      "expected_clip": "blue-square",
+      "hit_at_5": true,
+      "matches": [
+        {
+          "clip": "blue-square",
+          "similarity": 0.3237813115119934,
+          "timestamp_ms": 0
+        },
+        {
+          "clip": "blue-square",
+          "similarity": 0.32371407575263467,
+          "timestamp_ms": 6000
+        },
+        {
+          "clip": "blue-square",
+          "similarity": 0.323714026655441,
+          "timestamp_ms": 3000
+        },
+        {
+          "clip": "green-triangle",
+          "similarity": 0.2030952125787735,
+          "timestamp_ms": 0
+        },
+        {
+          "clip": "green-triangle",
+          "similarity": 0.20252510018721526,
+          "timestamp_ms": 6000
+        }
+      ],
+      "text": "a blue square on a white background",
+      "top1_correct": true
+    },
+    {
+      "expected_clip": "green-triangle",
+      "hit_at_5": true,
+      "matches": [
+        {
+          "clip": "green-triangle",
+          "similarity": 0.37234734728022567,
+          "timestamp_ms": 0
+        },
+        {
+          "clip": "green-triangle",
+          "similarity": 0.3717561696549807,
+          "timestamp_ms": 6000
+        },
+        {
+          "clip": "green-triangle",
+          "similarity": 0.3717561100503306,
+          "timestamp_ms": 3000
+        },
+        {
+          "clip": "blue-square",
+          "similarity": 0.21140885923120156,
+          "timestamp_ms": 6000
+        },
+        {
+          "clip": "blue-square",
+          "similarity": 0.21140884663024817,
+          "timestamp_ms": 3000
+        }
+      ],
+      "text": "a green triangle on a white background",
+      "top1_correct": true
+    },
+    {
+      "expected_clip": "blue-square",
+      "hit_at_5": true,
+      "matches": [
+        {
+          "clip": "blue-square",
+          "similarity": 0.3557533197697045,
+          "timestamp_ms": 0
+        },
+        {
+          "clip": "blue-square",
+          "similarity": 0.3557477209417812,
+          "timestamp_ms": 6000
+        },
+        {
+          "clip": "blue-square",
+          "similarity": 0.35574766993523654,
+          "timestamp_ms": 3000
+        },
+        {
+          "clip": "green-triangle",
+          "similarity": 0.23014320669851385,
+          "timestamp_ms": 0
+        },
+        {
+          "clip": "green-triangle",
+          "similarity": 0.23003275125926237,
+          "timestamp_ms": 6000
+        }
+      ],
+      "text": "a square blue shape",
+      "top1_correct": true
+    }
+  ],
+  "scope": "Synthetic sanity check; no statistical claim about real footage",
+  "top1_accuracy": 1.0
+}
