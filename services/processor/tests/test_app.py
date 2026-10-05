@@ -39,7 +39,9 @@ def await_ready(client, timeout=5):
 @pytest.fixture
 def ready_client():
     embedder = TestOnlyEmbedder()
-    with TestClient(create_app(Settings(), model_loader=lambda _: embedder)) as client:
+    with TestClient(
+        create_app(Settings(), model_loader=lambda _: embedder, worker_factory=None)
+    ) as client:
         await_ready(client)
         yield client, embedder
 
@@ -111,7 +113,7 @@ def test_live_http_responds_while_loading_and_model_loads_once():
         assert release.wait(5)
         return TestOnlyEmbedder()
 
-    with TestClient(create_app(Settings(), model_loader=load)) as client:
+    with TestClient(create_app(Settings(), model_loader=load, worker_factory=None)) as client:
         try:
             assert started.wait(2)
             assert client.get("/health/live").status_code == 200
@@ -131,7 +133,7 @@ def test_model_load_failure_keeps_liveness_and_fails_readiness(caplog):
     def fail(_):
         raise RuntimeError("checkpoint unavailable")
 
-    with TestClient(create_app(Settings(), model_loader=fail)) as client:
+    with TestClient(create_app(Settings(), model_loader=fail, worker_factory=None)) as client:
         deadline = time.monotonic() + 5
         while time.monotonic() < deadline:
             response = client.get("/health/ready")
@@ -152,7 +154,9 @@ def test_inference_failure_has_consistent_error(caplog):
         def embed_text(self, _):
             raise RuntimeError("private implementation detail")
 
-    with TestClient(create_app(Settings(), model_loader=lambda _: FailedEmbedder())) as client:
+    with TestClient(
+        create_app(Settings(), model_loader=lambda _: FailedEmbedder(), worker_factory=None)
+    ) as client:
         await_ready(client)
         response = client.post("/embed/text", json={"text": "a car"})
     assert response.status_code == 500
@@ -171,7 +175,9 @@ def test_health_http_remains_responsive_during_blocking_inference():
             assert release.wait(5)
             return super().embed_text(text)
 
-    with TestClient(create_app(Settings(), model_loader=lambda _: SlowEmbedder())) as client:
+    with TestClient(
+        create_app(Settings(), model_loader=lambda _: SlowEmbedder(), worker_factory=None)
+    ) as client:
         await_ready(client)
         with ThreadPoolExecutor(max_workers=1) as executor:
             pending = executor.submit(client.post, "/embed/text", json={"text": "a car"})

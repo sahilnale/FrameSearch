@@ -188,7 +188,8 @@ def main():
         waits = "/app/.venv/bin/python tests/wait_for_kafka.py && "
         selection = (
             "tests/test_kafka_settings.py tests/test_kafka.py tests/test_kafka_integration.py "
-            "tests/test_events.py tests/test_jobs.py tests/test_worker.py"
+            "tests/test_events.py tests/test_jobs.py tests/test_worker.py "
+            "tests/test_app.py tests/test_runtime.py"
         )
         if arguments.indexing:
             for name in (
@@ -215,7 +216,7 @@ def main():
                 "/app/.venv/bin/python tests/wait_for_postgres.py && "
                 "/app/.venv/bin/python tests/wait_for_minio.py && "
             )
-            selection += " tests/test_worker_integration.py"
+            selection += " tests/test_worker_integration.py tests/test_service_integration.py"
         command.extend(
             [
                 TEST_IMAGE,

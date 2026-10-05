@@ -7,8 +7,9 @@ and private source/thumbnail transfers through MinIO's S3 API. PostgreSQL
 connections, atomic job claims, and retry-safe frame writes are verified against
 the shared schema, including transactional success and failure finalization.
 These stages are connected by a real video indexing operation with bounded
-single-job retries and durable terminal outcomes. Kafka consumption and the serial
-ingestion loop are verified; HTTP startup integration is the next feature.
+single-job retries and durable terminal outcomes. The service launches the serial
+Kafka ingestion loop and shares one loaded model with its text HTTP endpoint.
+The full public Go API smoke test and frontend remain pending.
 
 ## Install and test the embedding core
 
@@ -64,7 +65,13 @@ Image encoding accepts 1–60 real image paths. Each file is closed after
 preprocessing, and one shared lock serializes image/text inference. The lock is
 released between image batches so text inference can run during indexing.
 
-## Run the internal text service
+## Run the processor service
+
+Start local PostgreSQL, Kafka with its initialized upload topic, and private MinIO
+with its initialized bucket. Export their shared `DATABASE_URL`, `KAFKA_BROKERS`,
+`KAFKA_TOPIC`, `S3_ENDPOINT_INTERNAL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, and `S3_BUCKET`
+settings before running the host service. See the root `.env.example` for local
+values; host endpoints use localhost, whereas Compose supplies internal names.
 
 ```sh
 cd services/processor
@@ -74,10 +81,13 @@ uv run --frozen uvicorn framesearch_processor.app:app --host 127.0.0.1 --port 80
 Use exactly one Uvicorn worker so that the model loads once per service process.
 Startup downloads and validates the genuine model in a background thread.
 `GET /health/live` returns 200 while weights load; `GET /health/ready` returns 503
-until a real warmup text inference succeeds. Model loading failure keeps readiness
-at 503 and logs the cause. Restart the process after fixing a download/cache error.
-One HTTP inference runs at a time, off the event loop, using the same model and
-lock as image inference.
+until real model warmup, schema/bucket checks, and Kafka subscription succeed.
+One dedicated thread initializes the model and then processes one indexing job at
+a time. One HTTP inference runs at a time, off the event loop, using the same model
+and lock as image inference. Startup failures or an unresolved ingestion event keep
+readiness at 503 and log the cause. Text inference remains available if its model
+is healthy while ingestion is stopped. Fix the cause and recover pending work
+before restarting the processor.
 
 ```sh
 curl --fail http://localhost:8000/health/ready
@@ -109,10 +119,9 @@ From the repository root:
 
 ```sh
 docker build -t framesearch-processor services/processor
-docker run --rm --name framesearch-processor \
-  -p 127.0.0.1:8000:8000 \
-  -v framesearch-model-cache:/cache \
-  framesearch-processor
+# Use --env-file .env instead when that file configures your existing local stack.
+# Select processor explicitly while the frontend is still being built.
+docker compose --env-file .env.example -f infra/docker-compose.yml up -d --build processor
 ```
 
 The image installs Python 3.12, pinned uv 0.6.3, locked CPU dependencies, and
@@ -127,11 +136,13 @@ Linux ARM64 image build and live HTTP verification passed using the genuine
 cached checkpoint. One Docker memory snapshot after text inference was 1.462 GiB
 for this processor. This is not a peak-memory or complete-stack measurement.
 
-Developer 1 can use `services/processor` as the Compose build context, keep port
-8000 internal, mount a persistent volume at `/cache`, and probe `/health/ready`.
-Allow time for the initial model download. The standalone loopback port above is
-only for local verification. This milestone's readiness checks the embedding
-model; Kafka consumption and indexing are not implemented yet.
+Shared Compose uses `services/processor` as the build context, keeps port 8000
+internal, persists `/model-cache`, and probes `/health/ready`. Selecting processor
+starts its database/migration, broker/topic, and storage/bucket dependencies.
+Allow time for the initial model download. Keep exactly one processor replica and
+one Uvicorn worker. The command is an integration instruction; the disposable
+processor stack below has been verified, while full shared Compose/Go smoke is
+still pending. The frontend is not required for these processor checks.
 
 Verify a running local service over an actual HTTP socket:
 
@@ -591,7 +602,7 @@ Successful indexing returns `completed` only after its ready/completed commit.
 Invalid MP4s fail immediately with a bounded actionable reason. Exhausted storage,
 media-tool, or inference errors return `failed` only after both failed states
 commit. Existing completed/failed jobs return `terminal` without reindexing.
-Only these returned outcomes may be acknowledged by the later Kafka caller.
+Only these returned outcomes may be acknowledged by the Kafka caller.
 
 Busy/missing jobs, stale claims, database errors without a confirmed terminal
 commit, and interrupted retry backoff raise instead. They must remain
@@ -647,7 +658,7 @@ is rejected until `acknowledge(message)` confirms a synchronous commit of that
 exact message's next offset, including the returned partition/error/offset.
 The caller must first confirm durable completed/failed state through `JobProcessor`.
 Commit errors leave the event pending. `close()` leaves the group without committing
-pending work. The serial loop below connects it to jobs; HTTP startup is still pending.
+pending work. The serial loop below connects it to jobs during HTTP startup.
 
 From the repo root, run a disposable real-broker check with no published ports:
 
@@ -697,15 +708,57 @@ events produce three genuine normalized vectors/JPEG objects at `0, 3000, 6000`,
 duplicates cause one DB claim, corrupt MP4s commit failed state, and malformed/busy/
 missing events leave offsets and later queued work untouched. Host suite:
 **363 passed, 129 skipped** (4.46 seconds). This is not public Go API ingestion or
-semantic evaluation. HTTP service startup does not yet launch the loop.
+semantic evaluation. Service startup now launches this loop as described below.
+
+## Shared model and worker lifecycle
+
+The production app starts one `ProcessorRuntime` thread. It loads/warmups real
+OpenCLIP once, validates the existing database schema and private storage bucket,
+and runs the Kafka consumer with a `VideoIndexer` referencing that same model.
+Model loading, media processing, storage/DB calls, and broker polling stay off the
+HTTP event loop. The existing model lock bounds concurrent image/text inference.
+
+`/health/ready` returns 503 during model loading, worker initialization, shutdown,
+or ingestion failure, with a bounded public reason. `/health/live` remains available.
+An unresolved event stops consumption and leaves its offset pending. Shutdown
+signals the shared stop event, interrupts retry backoff, and waits for the current
+initialization/indexing operation and cleanup before releasing model references.
+SIGTERM shutdown was verified on the packaged Uvicorn process. If the process is
+forcibly killed, recover its stale processing job after it has stopped.
+
+The updated `--indexing` helper runs **186 focused checks, no skips** (19.42 seconds).
+Twelve lifecycle/builder checks verify model identity, initialization/error paths,
+HTTP responsiveness, resource cleanup, and waiting for in-flight shutdown. Two
+actual packaged Uvicorn socket checks verify genuine text embeddings alongside
+Kafka indexing/duplicate handling, three durable real frame vectors/thumbnails,
+actual text-to-pgvector SQL, one logged model load, and SIGTERM cleanup. A malformed
+Kafka event produces `worker_failed` readiness, no committed offset, and untouched
+later queued work. Host suite: **375 passed, 131 skipped** (4.43 seconds).
+
+For valid queued work left by the DB-to-Kafka publish gap, Go provides
+`make reconcile`. For stale processing jobs, stop the sole processor before Go's
+stale-recovery pass. Until the frontend Dockerfile exists, use these explicit
+equivalents of the root `reconcile-stale` target (use your existing env file):
+
+```sh
+docker compose --env-file .env.example -f infra/docker-compose.yml stop processor
+docker compose --env-file .env.example -f infra/docker-compose.yml run --rm --no-deps api \
+  --reconcile --include-stale --processor-stopped
+docker compose --env-file .env.example -f infra/docker-compose.yml start processor
+```
+
+The API image must already be built; shared `RECONCILE_STALE_AFTER` defaults to
+15 minutes. This recovery republishes valid queued/stale jobs; malformed Kafka
+records require investigation and explicit resolution. There is no claim lease,
+DLQ, or atomic database/Kafka transaction. Public Go upload/search/playback smoke
+and semantic evaluation still need their own checkpoint.
 
 ## Integration notes for Developer 1
 
-The frozen model version is unchanged. No Go, schema, infrastructure, shared docs,
-or environment files are modified by this work. The internal HTTP server can
-listen on `0.0.0.0:8000` within Compose; indexing and its integrations come after it.
-The intended deployment uses exactly one Python process and one worker replica.
-MinIO deployment still needs a persistent data volume, private bucket, shared
-credentials, browser CORS, and the public endpoint used by Go for signed URLs.
-The processor uses only the internal endpoint. The test-only pinned source
-Dockerfile is available as a reference if the shared MinIO image is unavailable.
+The frozen model version and all shared contracts are unchanged. No Go, schema,
+infrastructure, shared docs, or environment files are modified by this work.
+The internal HTTP server listens on `0.0.0.0:8000` within Compose and starts the
+single indexing worker automatically. Shared MinIO must retain its persistent
+data, private bucket, credentials/CORS, and Go's browser-accessible signing
+endpoint. The processor uses only the internal storage endpoint. The remaining
+integration step is the actual public Go upload/search/playback smoke test.
