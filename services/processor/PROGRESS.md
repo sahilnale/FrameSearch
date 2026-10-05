@@ -25,7 +25,8 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | Connected real video indexing operation | Implemented, verified, pushed | Commit `27bd084`; 154 focused live checks pass, including actual ready indexing, interrupted upload recovery, and corrupt MP4 rejection |
 | Frozen Kafka event envelope validation | Implemented, verified, pushed | Commit `94bd191`; 41 focused checks pass; no broker consumption or acknowledgment yet |
 | Persistent model cache matching shared Compose | Implemented, verified, pushed | Commit `a096699`; 13 settings checks, non-root named-volume persistence, and real offline CLIP inference pass |
-| Bounded single-job retries and durable outcomes | Implemented, verified | 24 policy checks and three actual queued-event pipeline checks; 235 focused live checks pass |
+| Bounded single-job retries and durable outcomes | Implemented, verified, pushed | Commit `04f35db`; 24 policy checks and three actual queued-event pipeline checks; 235 focused live checks pass |
+| Pinned Kafka client and shared configuration | Implemented, verified | 34 Kafka configuration checks; 62 focused configuration checks pass; native consumer constructs/closes |
 | Kafka consumption, offset handling and lifecycle | Planned | Not run |
 | Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
 
@@ -376,6 +377,20 @@ Only successfully executed checks will be marked verified here.
   offline lockfile validation, and whitespace checks pass. No Developer 1 files
   changed and no unrelated project service started. Kafka offsets and the shared
   HTTP/worker lifecycle remain separate checkpoints.
+
+## Kafka client configuration checkpoint
+
+- Added only the pinned native `confluent-kafka==2.15.1` dependency and
+  `KafkaSettings`. Existing dependency versions remain unchanged; the lockfile
+  adds one package. Shared broker/topic variables match Compose; the optional
+  processor-local group defaults to `framesearch-processor`.
+- Validates CSV host:port endpoints (including IPv6) and bounded topic/group
+  identifiers. **34 focused Kafka checks** and **62 configuration regression
+  checks pass** (0.03 seconds). Native client/librdkafka both report 2.15.1;
+  actual consumer construction and close pass on macOS ARM64.
+- Ruff, formatting, offline lockfile validation, and whitespace checks pass.
+  No broker subscription, offset handling, HTTP lifecycle, or shared file changes
+  are included. Kafka 3.9.0, matching Compose, is cached for subsequent real tests.
 
 ## Remaining sequence
 

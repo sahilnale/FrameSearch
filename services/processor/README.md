@@ -616,6 +616,24 @@ matching shared Compose, plus actual MinIO/FFmpeg/cached CPU CLIP. Packaged impo
 and database checks pass as UID 10001. Host regression: **280 passed, 121 skipped**
 (4.03 seconds); opt-in integration/tooling checks account for the skips.
 
+## Kafka client configuration
+
+The processor pins `confluent-kafka==2.15.1`, including native librdkafka, in the
+existing lockfile. CPU macOS ARM64 and Linux ARM64 wheels are available; no broker
+or model is bundled into that dependency. `KafkaSettings.from_env()` reads:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `KAFKA_BROKERS` | `localhost:9092` | Comma-separated host:port endpoints; Compose supplies `kafka:29092` |
+| `KAFKA_TOPIC` | `media.uploaded` | Shared upload-event topic |
+| `KAFKA_CONSUMER_GROUP` | `framesearch-processor` | Processor-local stable group; retain it across restarts |
+
+Configuration rejects empty/invalid endpoints and topic/group identifiers before
+constructing a native client. All **34 Kafka configuration checks pass**, with
+**62 focused configuration checks passing** (0.03 seconds). The actual native
+2.15.1 consumer constructs and closes successfully on macOS ARM64. This checkpoint
+does not subscribe, consume, acknowledge, or change the HTTP lifecycle.
+
 ## Integration notes for Developer 1
 
 The frozen model version is unchanged. No Go, schema, infrastructure, shared docs,
