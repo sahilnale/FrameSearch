@@ -1,0 +1,47 @@
+{
+  "dataset": "framesearch-commons-real-v1",
+  "source_checked_on": "2026-10-07",
+  "duration_seconds": 18,
+  "fps": 10,
+  "clips": [
+    {
+      "id": "puppy-indoors",
+      "filename": "puppy-indoors.mp4",
+      "title": "Puppy playing.webm",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Puppy_playing.webm",
+      "download_url": "https://upload.wikimedia.org/wikipedia/commons/2/21/Puppy_playing.webm",
+      "size_bytes": 13009833,
+      "source_sha1": "733210c6cc9a1c2d54b93011b164cbbc1f2e10d8",
+      "author": "Subhashish Panigrahi",
+      "author_url": "https://commons.wikimedia.org/wiki/User:Psubhashish",
+      "license": "CC BY-SA 3.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    {
+      "id": "park-waterfall",
+      "filename": "park-waterfall.mp4",
+      "title": "Small waterfall.webm",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Small_waterfall.webm",
+      "download_url": "https://upload.wikimedia.org/wikipedia/commons/b/b5/Small_waterfall.webm",
+      "size_bytes": 18429839,
+      "source_sha1": "c4da5bbbc9ef37e05b2ae7c876563594ab2908dc",
+      "author": "Editor",
+      "author_url": "https://www.youtube.com/user/Editor",
+      "license": "CC BY 3.0",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/"
+    },
+    {
+      "id": "passenger-train",
+      "filename": "passenger-train.mp4",
+      "title": "Cross Country Train 220005 at Burton-on-Trent station - HD video clip.webm",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Cross_Country_Train_220005_at_Burton-on-Trent_station_-_HD_video_clip.webm",
+      "download_url": "https://upload.wikimedia.org/wikipedia/commons/e/ea/Cross_Country_Train_220005_at_Burton-on-Trent_station_-_HD_video_clip.webm",
+      "size_bytes": 11309829,
+      "source_sha1": "ca65e975bb547ea7fd57a510f6bd9d4b8910e645",
+      "author": "Elliott Brown",
+      "author_url": "https://www.flickr.com/photos/ell-r-brown/",
+      "license": "CC BY-SA 2.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/2.0/"
+    }
+  ]
+}
