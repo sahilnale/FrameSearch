@@ -35,10 +35,12 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
+        cache_root = os.getenv("XDG_CACHE_HOME")
+        default_cache = Path(cache_root) / "openclip" if cache_root else Path(".cache/openclip")
         return cls(
             model_name=os.getenv("MODEL_NAME", MODEL_NAME),
             model_pretrained=os.getenv("MODEL_PRETRAINED", MODEL_PRETRAINED),
-            model_cache_dir=Path(os.getenv("MODEL_CACHE_DIR", ".cache/openclip")),
+            model_cache_dir=Path(os.getenv("MODEL_CACHE_DIR") or default_cache),
             torch_threads=int(os.getenv("TORCH_NUM_THREADS", "2")),
             image_batch_size=int(os.getenv("IMAGE_BATCH_SIZE", "4")),
         )
@@ -111,3 +113,53 @@ class DatabaseSettings:
     @classmethod
     def from_env(cls) -> "DatabaseSettings":
         return cls(url=os.getenv("DATABASE_URL", ""))
+
+
+@dataclass(frozen=True)
+class KafkaSettings:
+    brokers: tuple[str, ...] = ("localhost:9092",)
+    topic: str = "media.uploaded"
+    group_id: str = "framesearch-processor"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.brokers, tuple) or not self.brokers:
+            raise ValueError("KAFKA_BROKERS must contain host:port endpoints")
+        for broker in self.brokers:
+            try:
+                endpoint = urlsplit(f"//{broker}")
+                valid = (
+                    isinstance(broker, str)
+                    and not any(character.isspace() for character in broker)
+                    and bool(endpoint.hostname)
+                    and endpoint.port is not None
+                    and 1 <= endpoint.port <= 65535
+                    and endpoint.username is None
+                    and endpoint.password is None
+                    and not endpoint.path
+                    and not endpoint.query
+                    and not endpoint.fragment
+                )
+            except (TypeError, ValueError):
+                valid = False
+            if not valid:
+                raise ValueError("KAFKA_BROKERS must contain host:port endpoints")
+        for name, value, length in (
+            ("KAFKA_TOPIC", self.topic, 249),
+            ("KAFKA_CONSUMER_GROUP", self.group_id, 255),
+        ):
+            if (
+                not isinstance(value, str)
+                or not re.fullmatch(rf"[A-Za-z0-9._-]{{1,{length}}}", value)
+                or value in (".", "..")
+            ):
+                raise ValueError(f"{name} must be a valid Kafka identifier")
+
+    @classmethod
+    def from_env(cls) -> "KafkaSettings":
+        return cls(
+            brokers=tuple(
+                part.strip() for part in os.getenv("KAFKA_BROKERS", "localhost:9092").split(",")
+            ),
+            topic=os.getenv("KAFKA_TOPIC", "media.uploaded"),
+            group_id=os.getenv("KAFKA_CONSUMER_GROUP", "framesearch-processor"),
+        )
