@@ -52,6 +52,12 @@ Playback checkpoint: nine focused UI tests, lint, and production build passed.
 Metadata-gated seeking, fresh URL recovery, and invalid-timestamp errors are
 covered. Native decoding/seek and cross-origin storage will be verified live.
 
+Library regression checkpoint: **12 UI tests passed** (1.69s), with zero-warning
+lint and TypeScript checks. Added explicit coverage for a verified empty library,
+an unreachable API, and retrying an existing failed video without creating a new
+video. The reported library error was reproduced with services offline; the live
+empty-library check passed after starting the real API.
+
 Developer 1's infrastructure, API and schema remain unchanged.
 
 ## Container
