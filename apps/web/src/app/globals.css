@@ -117,6 +117,22 @@ h1 > span:not(.lime) { color:#929987; }
 .status-badge { margin-left:auto; color:#aabf8b; background:#27311e; padding:5px 10px; border-radius:4px; font-size:9px; }
 .spinner { display:inline-block; width:17px; height:17px; border:1.5px solid #657247; border-top-color:var(--lime); border-radius:50%; animation:spin .8s linear infinite; flex-shrink:0; }
 @keyframes spin { to { transform:rotate(360deg); } }
+.playback-dialog { padding:0; border:1px solid #495b36; background:#151a11; color:var(--text); width:min(960px,calc(100vw - 48px)); max-height:calc(100dvh - 48px); overflow:auto; border-radius:10px; margin:auto; box-shadow:0 20px 100px #000a; }
+.playback-dialog::backdrop { background:#080b08dd; backdrop-filter:blur(8px); }
+.player-header { display:flex; gap:20px; align-items:center; justify-content:space-between; padding:25px 28px; }
+.player-header h2 { font-size:17px; font-weight:550; margin:10px 0 0; letter-spacing:-.3px; overflow-wrap:anywhere; }
+.player-stage { position:relative; background:#080b07; min-height:240px; aspect-ratio:16/9; }
+.player-stage video { width:100%; height:100%; display:block; background:#080b07; }
+.player-loading,.player-error { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:15px; padding:30px; background:#10160eef; color:#b7c7a0; font-size:12px; text-align:center; }
+.player-loading .spinner { width:25px; height:25px; }
+.player-error { color:#d8b69d; }
+.player-error p { max-width:480px; margin:0; line-height:1.9; }
+.player-footer { padding:20px 28px; display:flex; align-items:center; justify-content:space-between; gap:15px; }
+.player-footer > div { display:flex; align-items:center; gap:20px; }
+.player-time { font:15px monospace; color:#d7fb83; }
+.player-found { font-size:8px; letter-spacing:1px; color:#859e68; }
+.player-found strong { font:10px monospace; color:#b6cd97; margin-left:7px; }
+@media(max-width:520px) { .playback-dialog { width:calc(100vw - 24px); } .player-header { padding:22px; } .player-header h2 { font-size:13px; } .player-stage { min-height:220px; aspect-ratio:auto; } .player-stage video { min-height:220px; } .player-footer { padding:18px 20px; flex-wrap:wrap; } .player-footer > div { width:100%; justify-content:space-between; } .player-footer > .text-button { margin-left:auto; } }
 .search-form { border:1px solid #485636; border-radius:8px; background:#1b2016; padding:7px; box-shadow:0 6px 30px #0002; }
 .search-field { display:flex; align-items:center; gap:16px; padding:8px 8px 12px 17px; }
 .search-field > svg { color:#9caf7e; flex-shrink:0; }

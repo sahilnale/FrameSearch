@@ -9,6 +9,7 @@ import type { SearchResult } from "@/lib/contracts";
 import { formatTime } from "@/lib/upload";
 import { FrameArt } from "./frame-art";
 import { useWorkspace } from "./workspace";
+import { PlaybackOverlay } from "./playback-overlay";
 
 const suggestions = ["A dog playing indoors", "Water flowing through a park", "A train at a station"];
 
@@ -28,6 +29,7 @@ export function SearchExperience({ initialVideo = "" }: { initialVideo?: string 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshed, setRefreshed] = useState(0);
+  const [selected, setSelected] = useState<SearchResult | null>(null);
   const request = useRef<AbortController | null>(null);
   const input = useRef<HTMLInputElement>(null);
 
@@ -39,7 +41,7 @@ export function SearchExperience({ initialVideo = "" }: { initialVideo?: string 
     if ([...trimmed].length > 500) { setError("Use up to 500 characters to describe a visual moment."); return; }
     request.current?.abort();
     const controller = new AbortController(); request.current = controller;
-    setLoading(true); setError(null); setResults([]); setSubmitted(trimmed);
+    setLoading(true); setError(null); setResults([]); setSubmitted(trimmed); setSelected(null);
     try {
       const response = await api.search(trimmed, videoId || null, controller.signal);
       if (!controller.signal.aborted) { setResults(response.results); setRefreshed(value => value + 1); }
@@ -57,9 +59,10 @@ export function SearchExperience({ initialVideo = "" }: { initialVideo?: string 
     {!submitted && <div className="suggestions"><span>TRY A VISUAL DESCRIPTION</span>{suggestions.map(text => <button key={text} onClick={() => { setQuery(text); void search(text); }}><Sparkles size={11}/>{text}<ArrowUpRight size={11}/></button>)}</div>}
     {submitted ? <section className="results-section" aria-label="Search results" aria-busy={loading}>
       <div className="section-heading"><div><h2>{loading ? "Finding your moments…" : error ? "Search interrupted" : `${results.length} ${results.length === 1 ? "moment" : "moments"} found`} {!loading && !error && <span className="count-pill">{results.length}</span>}</h2><p className="result-query">For “{submitted}”</p></div><span>RANKED BY VISUAL SIMILARITY</span></div>
-      {error ? <div className="notice error" role="alert"><p>{error}</p><button className="button button-secondary" onClick={() => void search(submitted)}>Try search again <ArrowUpRight size={15}/></button></div> : loading ? <div className="results-grid" aria-label="Loading matching frames">{[0,1,2].map(number => <div key={number} className="result-skeleton"><div/><span/><span/></div>)}</div> : results.length === 0 ? <div className="empty-panel"><Search size={30} strokeWidth={1}/><h2>No frames found yet.</h2><p>{ready.length === 0 ? "Upload a video and wait for indexing to finish, then search again." : "Try another description, or search across all your indexed videos."}</p>{ready.length === 0 && <Link href="/library?upload=1" className="button button-secondary">Add a video <ArrowRight size={15}/></Link>}</div> : <><div className="results-grid">{results.map((result, index) => <ResultCard key={`${refreshed}-${result.frame_id}`} result={result} index={index}/>)}</div><div className="result-footer"><Scan size={13}/><span>Real frames from your videos. Scores are raw cosine similarity, not confidence percentages.</span><button className="text-button" onClick={() => void search(submitted)}>Refresh results</button></div></>}
+      {error ? <div className="notice error" role="alert"><p>{error}</p><button className="button button-secondary" onClick={() => void search(submitted)}>Try search again <ArrowUpRight size={15}/></button></div> : loading ? <div className="results-grid" aria-label="Loading matching frames">{[0,1,2].map(number => <div key={number} className="result-skeleton"><div/><span/><span/></div>)}</div> : results.length === 0 ? <div className="empty-panel"><Search size={30} strokeWidth={1}/><h2>No frames found yet.</h2><p>{ready.length === 0 ? "Upload a video and wait for indexing to finish, then search again." : "Try another description, or search across all your indexed videos."}</p>{ready.length === 0 && <Link href="/library?upload=1" className="button button-secondary">Add a video <ArrowRight size={15}/></Link>}</div> : <><div className="results-grid">{results.map((result, index) => <ResultCard key={`${refreshed}-${result.frame_id}`} result={result} index={index} onSelect={() => setSelected(result)}/>)}</div><div className="result-footer"><Scan size={13}/><span>Real frames from your videos. Scores are raw cosine similarity, not confidence percentages.</span><button className="text-button" onClick={() => void search(submitted)}>Refresh results</button></div></>}
     </section> : <section className="welcome-card search-welcome"><div className="welcome-copy"><span className="eyebrow muted">{ready.length ? "YOUR FOOTAGE HAS SOMETHING TO SHOW YOU" : "YOUR NEXT DISCOVERY STARTS HERE"}</span><h2>{ready.length ? <>A few words.<br/>A whole new perspective.</> : <>A whole new way<br/>to see your footage.</>}</h2><p>{ready.length ? "Describe a visual moment above. We’ll bring you the frames that look like it." : "Add your first video, describe a visual moment, and go straight to the matching frame."}</p>{ready.length ? <button className="button button-secondary" onClick={() => input.current?.focus()}>Start exploring <ArrowRight size={17}/></button> : <Link href="/library?upload=1" className="button">Upload your first video <ArrowRight size={17}/></Link>}<span className="file-note">{ready.length ? "Objects. Places. Colors. Moments." : "MP4 · Up to 100 MB · 3 minutes"}</span></div><FrameArt/></section>}
     {!submitted && <div className="search-explainer"><div><Scan size={16}/><span>Search what’s visible.</span></div><p>Describe the frame you’re looking for. We’ll point you to the moment.</p><span>YOUR WORDS → YOUR FOOTAGE</span></div>}
+    {selected && <PlaybackOverlay key={selected.frame_id} result={selected} onClose={() => setSelected(null)}/>}
   </div>;
 }
 
