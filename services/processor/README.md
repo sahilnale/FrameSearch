@@ -11,8 +11,9 @@ single-job retries and durable terminal outcomes. The service launches the seria
 Kafka ingestion loop and shares one loaded model with its text HTTP endpoint.
 The complete live processor suite passes. Labeled synthetic and real-footage
 search evaluations are recorded; the real sample exposes two first-frame misses.
-The public Go API smoke test and frontend remain pending. See `VERIFICATION.md`
-for exact results and remaining scope.
+The public Go API upload/queue/search/signed-read smoke now passes in an isolated
+live stack. Shared Compose/browser verification and frontend remain pending.
+See `VERIFICATION.md` for exact results and remaining scope.
 
 ## Install and test the embedding core
 
@@ -805,6 +806,27 @@ to use this dataset instead of generated shapes in a future complete run.
 
 ## Integration notes for Developer 1
 
+The actual Go API queue smoke can run independently of the missing frontend:
+
+```sh
+python services/processor/tests/run_kafka_tests.py --indexing --api
+# After successfully building the current API/processor test images:
+python services/processor/tests/run_kafka_tests.py --indexing --api --skip-build
+```
+
+Requires cached real CLIP and prepared Commons excerpts from
+`scripts/prepare_real_clips.py`. It builds the unchanged canonical Go API image,
+copies its actual executable into the test runtime, and uses disposable real
+Kafka/MinIO/PostgreSQL with the unchanged migration. It creates all videos/jobs
+through public HTTP upload/complete calls, checks three queued jobs/events while
+the processor is stopped, starts the real service, and verifies all three jobs,
+18 real frames, and committed offset 3. Duplicate completions add no jobs/events.
+Public search/filtering, signed JPEG/MP4, byte-range reads, and 403 unsigned reads
+pass. **One live check passed, zero skips** (9.16 seconds); summary is in
+`evaluations/api-queue-smoke.json`. Test resources are removed afterward. This
+does not verify a browser or shared Compose's default public addresses. Public
+failed-upload retry and stale-crash recovery remain separate integration checks.
+
 The complete processor/AI suite can run without the Go service or frontend:
 
 ```sh
@@ -817,11 +839,13 @@ All live dependency flags are enabled, including real media and model checks.
 The complete suite at `02a95cc` passed **506 tests with zero skips** (47.94 seconds).
 The separately executed labeled check adds one more test to future full runs. See
 `VERIFICATION.md` for the tested behavior and remaining integration boundaries.
+Add `--api` to `--indexing --full` to include the new opt-in public API smoke and
+build its combined test image; otherwise that case is deliberately skipped.
 
 The frozen model version and all shared contracts are unchanged. No Go, schema,
 infrastructure, shared docs, or environment files are modified by this work.
 The internal HTTP server listens on `0.0.0.0:8000` within Compose and starts the
 single indexing worker automatically. Shared MinIO must retain its persistent
 data, private bucket, credentials/CORS, and Go's browser-accessible signing
-endpoint. The processor uses only the internal storage endpoint. The remaining
-integration step is the actual public Go upload/search/playback smoke test.
+endpoint. The processor uses only the internal storage endpoint. Remaining
+integration includes shared Compose/browser checks and public retry/recovery.
