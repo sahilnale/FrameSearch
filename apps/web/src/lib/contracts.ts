@@ -1,4 +1,5 @@
-export type VideoStatus = "awaiting_upload" | "queued" | "processing" | "ready" | "failed";
+export type VideoStatus =
+  "awaiting_upload" | "queued" | "processing" | "ready" | "failed";
 
 export type Video = {
   id: string;
@@ -18,5 +19,9 @@ export type SearchResult = {
   similarity: number;
 };
 
-export type UploadTicket = { video_id: string; upload_url: string; object_key: string };
+export type UploadTicket = {
+  video_id: string;
+  upload_url: string;
+  object_key: string;
+};
 export type PlaybackTicket = { url: string; expires_in_seconds: number };
