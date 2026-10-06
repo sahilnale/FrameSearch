@@ -7,6 +7,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   ImageOff,
+  Play,
   Scan,
   Search,
   SlidersHorizontal,
@@ -302,19 +303,21 @@ export function ResultCard({
         <span className="timestamp">{formatTime(result.timestamp_ms)}</span>
         {onSelect && (
           <span className="frame-play">
-            <ArrowUpRight size={21} />
+            <Play size={19} />
           </span>
         )}
       </div>
       <div className="result-info">
         <h3 title={result.filename}>{result.filename}</h3>
         <div>
-          <span className="frame-label">Frame {index + 1}</span>
+          <span className="frame-label">
+            {onSelect ? "Play video" : "Matching frame"}
+          </span>
           <span
             className="cosine-score"
             title="Raw cosine similarity; not a confidence percentage"
           >
-            Cosine <strong>{result.similarity.toFixed(3)}</strong>
+            Similarity <strong>{result.similarity.toFixed(3)}</strong>
           </span>
         </div>
       </div>
