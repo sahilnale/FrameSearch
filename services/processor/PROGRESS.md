@@ -37,7 +37,8 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | Licensed real-footage fixtures | Implemented, verified, pushed | Commit `8997c00`; three hash-pinned Commons recordings, credited 18-second MP4 excerpts, nine labels committed before inference |
 | Real-footage semantic evaluation | Verified | All nine queries find correct video first; relevant moment first in 7/9 and in top five in 9/9; actual pipeline over 18 frames |
 | Public Go upload/queue/search/signed-read smoke | Verified | Three actual API uploads queue while processor is stopped, then three jobs complete; 18 real frames, offset 3, no duplicate jobs; 9.16 seconds |
-| Shared Compose/browser and public retry/recovery | Pending | Default public addresses, browser flow, failed-upload retry and stopped-worker recovery need separate integration checks |
+| Frontend upload/search/playback | Implemented, verified, pushed | Next.js/Tailwind cinematic UI; 12 tests; real browser uploads all three samples, 18 frames, offset 3; native 12-second seek verified in production container |
+| Shared Compose and public retry/recovery | Pending | Full persistent Compose startup, failed-upload retry and stopped-worker recovery need separate integration checks |
 
 This file is Developer 2-owned. Developer 1 maintains the root progress document.
 Only successfully executed checks will be marked verified here.
@@ -526,9 +527,20 @@ bounded wait for coordinator readiness and reran successfully. Host regression
 **375 passed, 133 skipped** (4.02 seconds); lint/format/offline lock/whitespace
 checks pass. Test resources cleaned; no Developer 1 files changed.
 
-1. Shared Compose startup/default public-address checks and public failure/
-   retry/recovery integrations.
-2. Frontend upload, search, and playback, after the backend integration works.
+The user then requested the frontend. Delivered and pushed separate foundation,
+upload/library, search, playback, formatting, container and library regression
+checkpoints. **12 UI tests passed**; lint/typecheck and production build passed.
+Actual browser uploads of all three real clips completed with 18 frames and offset
+3. Go returned real filtered results and loaded signed thumbnails. Production
+frontend decoded the actual train MP4 and sought to 12.200425 seconds for a 12-second
+frame. Re-seeking, Escape/focus restoration and 390/1440px layouts passed. The
+empty library was verified before uploading. Samples/credits were copied to the
+user's Downloads. A disposable genuine demo remains running for the user; no
+unrelated projects were started. See `../../apps/web/VERIFICATION.md`.
+
+Remaining: full persistent shared Compose startup and public failure/retry/
+stopped-worker recovery integrations. Shared Compose configuration validation
+passes; complete shared startup has not been claimed.
 
 Each feature remains a separate tested commit and is pushed at its checkpoint.
-Full browser end-to-end functionality is not yet implemented.
+The actual browser happy path is implemented and verified in the isolated demo.

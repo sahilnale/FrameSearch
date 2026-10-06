@@ -1,0 +1,42 @@
+{
+  "evaluated_on": "2026-10-07",
+  "api_source_commit": "66faaf4",
+  "frontend_feature_commit": "93c4063",
+  "frontend_container_commit": "6c7cec1",
+  "dataset": "framesearch-commons-real-v1",
+  "scope": "Real browser happy path in a disposable Docker demo, followed by production frontend search/playback; no shared Compose startup or recovery claim",
+  "empty_library": "All videos 0 and blank-library message verified with API online",
+  "browser_uploads": [
+    "puppy-indoors.mp4",
+    "park-waterfall.mp4",
+    "passenger-train.mp4"
+  ],
+  "ready_videos": 3,
+  "duration_seconds_per_video": 18,
+  "completed_jobs": 3,
+  "job_claim_attempts_total": 3,
+  "frame_rows": 18,
+  "kafka_committed_offset": 3,
+  "filtered_train_results": 6,
+  "loaded_train_thumbnails": 6,
+  "score_display": "raw cosine, not confidence percentage",
+  "playback": {
+    "matching_timestamp_ms": 12000,
+    "observed_current_time_seconds": 12.200425,
+    "duration_seconds": 18,
+    "ready_state": 4,
+    "media_error": null,
+    "paused": false,
+    "reseek_observed_time_seconds": 12.138701,
+    "escape_open_dialogs": 0,
+    "escape_focus_restored_to": "Play passenger-train.mp4 at 00:12"
+  },
+  "responsive_checks": [
+    { "viewport_width": 390, "document_width": 390 },
+    { "viewport_width": 1440, "document_width": 1440 }
+  ],
+  "frontend_runtime_uid": 1000,
+  "unit_tests_passed": 12,
+  "unit_tests_duration_seconds": 1.69,
+  "data_lifetime": "Samples left ready in the running temporary demo; Downloads copies are independent"
+}

@@ -55,7 +55,7 @@ covered. Native decoding/seek and cross-origin storage will be verified live.
 Library regression checkpoint: **12 UI tests passed** (1.69s), with zero-warning
 lint and TypeScript checks. Added explicit coverage for a verified empty library,
 an unreachable API, and retrying an existing failed video without creating a new
-video. The reported library error was reproduced with services offline; the live
+video. The reported library error coincided with services offline; the live
 empty-library check passed after starting the real API.
 
 Developer 1's infrastructure, API and schema remain unchanged.
@@ -78,3 +78,25 @@ with HTTP 200 as UID 1000. The genuine backend/browser check also decoded an
 18-second train clip and sought to 12 seconds (observed 12.200425s, readyState 4,
 no media error). Escape returned focus to the selected result. Full shared
 Compose startup remains a separate check.
+
+## Live demo
+
+The real browser check passed: three sample uploads became ready, 18 frames were
+indexed, search thumbnails loaded, and playback sought to the selected timestamp.
+Details and remaining scope are in [VERIFICATION.md](VERIFICATION.md).
+
+From the repository root, after caching real model weights:
+
+```sh
+python3 scripts/run_browser_demo.py --with-web
+# Only when the existing images match current source:
+python3 scripts/run_browser_demo.py --with-web --skip-build
+```
+
+This builds unchanged canonical backend images and the owned web image, creates
+fresh genuine dependencies with credentials held in memory, and starts a blank
+library. Upload the samples in your browser. Open **http://localhost:3000**, not
+127.0.0.1, to match the configured allowed origin. Ctrl+C removes only that demo's
+temporary data/containers/network. The runner refuses occupied ports and never
+starts other projects. Use shared Compose for persistent application data; its
+complete startup remains to be executed separately.
