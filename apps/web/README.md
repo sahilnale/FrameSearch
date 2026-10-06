@@ -53,3 +53,22 @@ Metadata-gated seeking, fresh URL recovery, and invalid-timestamp errors are
 covered. Native decoding/seek and cross-origin storage will be verified live.
 
 Developer 1's infrastructure, API and schema remain unchanged.
+
+## Container
+
+```sh
+docker build -t framesearch-web:ui-checkpoint apps/web
+```
+
+Run that command from the repository root. The pinned Node LTS image builds with
+`npm ci` and serves standalone output as the unprivileged `node` user. Pass
+`--build-arg NEXT_PUBLIC_API_URL=http://localhost:8080` for a different public API
+address. The browser URL is baked in at build time, as expected by the existing
+shared Compose `web` service; changing only a running container's environment
+does not change the client bundle.
+
+Container verification: build passed; actual runtime serves `/` and `/library`
+with HTTP 200 as UID 1000. The genuine backend/browser check also decoded an
+18-second train clip and sought to 12 seconds (observed 12.200425s, readyState 4,
+no media error). Escape returned focus to the selected result. Full shared
+Compose startup remains a separate check.
