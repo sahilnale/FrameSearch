@@ -25,10 +25,18 @@ npm run build
 
 - Visual foundation: responsive charcoal/green shell, navigation, empty states,
   shared TypeScript contracts, live library/status polling. No fabricated videos.
-- Next: direct signed upload, processing/retry, search results, timestamp playback.
+- Upload/library: signed direct-to-storage PUT with measured progress, early file
+  checks, status polling, failed-index retry, and completion retry without a second
+  upload. State survives navigation within the app. A browser reload loses the
+  selected local file; the shared API has no upload-resume URL endpoint.
+- Next: search results and timestamp playback.
 
 Foundation checks: ESLint (zero warnings), TypeScript, and production build passed.
 The browser preview was inspected at its default compact size and 1440px desktop.
 The font is bundled locally with its SIL Open Font License in `src/fonts/OFL.txt`.
+
+Upload checkpoint: three focused UI tests, ESLint, and production build passed.
+The tests isolate HTTP/transfer calls to exercise double submission and interrupted
+completion. Real browser ingestion will be checked against the genuine stack.
 
 Developer 1's infrastructure, API and schema remain unchanged.
