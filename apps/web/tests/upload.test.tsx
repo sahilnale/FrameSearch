@@ -66,7 +66,7 @@ describe("upload boundaries", () => {
     fireEvent.click(screen.getByRole("button", { name: "Upload video" }));
     await screen.findByText("API temporarily unavailable");
     fireEvent.click(screen.getByRole("button", { name: "Try upload again" }));
-    await screen.findByText("Uploaded. Finding your frames.");
+    await screen.findByText("Upload complete. Check indexing status below.");
     expect(api.upload).toHaveBeenCalledTimes(1);
     expect(putVideo).toHaveBeenCalledTimes(1);
     expect(api.complete).toHaveBeenCalledTimes(2);

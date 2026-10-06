@@ -13,9 +13,9 @@ const manrope = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "FrameSearch — Find the moment",
+  title: "FrameSearch — Video search",
   description:
-    "Search what you see. Find visual moments in your own videos with natural language.",
+    "Search the visual content of your videos and play matching frames at their timestamps.",
 };
 
 export default function RootLayout({

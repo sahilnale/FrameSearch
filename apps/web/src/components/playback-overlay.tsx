@@ -121,7 +121,7 @@ export function PlaybackOverlay({
         <header className="player-header">
           <div>
             <div className="eyebrow">
-              <span /> A MOMENT, FOUND
+              <span /> Playback
             </div>
             <h2 id="playback-title">{result.filename}</h2>
           </div>
@@ -167,7 +167,7 @@ export function PlaybackOverlay({
               <span>
                 {url
                   ? `Jumping to ${formatTime(result.timestamp_ms)}…`
-                  : "Preparing your moment…"}
+                  : "Loading video…"}
               </span>
             </div>
           )}
@@ -195,7 +195,7 @@ export function PlaybackOverlay({
               {time === null ? "--:--" : formatTime(time * 1000)}
             </span>
             <span className="player-found">
-              MATCHING FRAME <strong>{formatTime(result.timestamp_ms)}</strong>
+              Matching frame <strong>{formatTime(result.timestamp_ms)}</strong>
             </span>
           </div>
           <button

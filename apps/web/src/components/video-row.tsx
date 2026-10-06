@@ -26,8 +26,8 @@ const labels: Record<VideoStatus, string> = {
 const hints: Record<VideoStatus, string> = {
   awaiting_upload: "File transfer is not complete.",
   queued: "Waiting for indexing to start.",
-  processing: "Finding visual moments in your footage.",
-  ready: "Your frames are searchable.",
+  processing: "Preparing frames for search.",
+  ready: "Available in search.",
   failed: "This video could not be indexed.",
 };
 

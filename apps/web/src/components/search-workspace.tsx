@@ -10,20 +10,12 @@ import {
   Scan,
   Search,
   SlidersHorizontal,
-  Sparkles,
 } from "lucide-react";
 import { api, errorMessage } from "@/lib/api";
 import type { SearchResult } from "@/lib/contracts";
 import { formatTime } from "@/lib/upload";
-import { FrameArt } from "./frame-art";
 import { useWorkspace } from "./workspace";
 import { PlaybackOverlay } from "./playback-overlay";
-
-const suggestions = [
-  "A dog playing indoors",
-  "Water flowing through a park",
-  "A train at a station",
-];
 
 export function SearchWorkspace() {
   const parameters = useSearchParams();
@@ -92,28 +84,12 @@ export function SearchExperience({
 
   return (
     <div className="page-content search-page">
-      <div className="eyebrow">
-        <span /> A DIFFERENT WAY TO FIND
-      </div>
       <section className="intro">
         <div>
-          <h1>
-            You remember the moment.
-            <br />
-            <span>We find the frame.</span>
-          </h1>
+          <h1>Search your videos</h1>
           <p>
-            Turn a thought into a timestamp. Search your footage in your own
-            words.
+            Describe what you’re looking for and jump to the matching frame.
           </p>
-        </div>
-        <div className="intro-mark">
-          <Scan size={36} strokeWidth={1} />
-          <span>
-            VISUAL
-            <br />
-            INTELLIGENCE
-          </span>
         </div>
       </section>
       <form
@@ -129,14 +105,14 @@ export function SearchExperience({
           <input
             ref={input}
             aria-label="Describe a visual moment"
-            placeholder="Describe a moment. A place. Something you saw…"
+            placeholder="Describe a scene, object, or activity…"
             value={query}
             maxLength={500}
             onChange={(event) => setQuery(event.target.value)}
           />
           <button type="submit" className="button" disabled={!query.trim()}>
             {loading ? <span className="spinner" /> : null}
-            <span>Find frames</span>
+            <span>Search</span>
             <ArrowRight size={16} />
           </button>
         </div>
@@ -152,7 +128,7 @@ export function SearchExperience({
                 if (submitted) void search(submitted, value);
               }}
             >
-              <option value="">All indexed videos</option>
+              <option value="">All videos</option>
               {initialVideo &&
                 !ready.some((video) => video.id === initialVideo) && (
                   <option value={initialVideo}>Selected video</option>
@@ -175,31 +151,12 @@ export function SearchExperience({
           <details className="search-help">
             <summary>Search tips</summary>
             <p>
-              Describe visible objects, places, colors, or activity. Results
-              match visual frames; dialogue and story events are outside this
-              search.
+              Describe visible objects, actions, or settings. Search matches
+              visual content; speech and dialogue aren’t indexed.
             </p>
           </details>
         </div>
       </form>
-      {!submitted && (
-        <div className="suggestions">
-          <span>TRY A VISUAL DESCRIPTION</span>
-          {suggestions.map((text) => (
-            <button
-              key={text}
-              onClick={() => {
-                setQuery(text);
-                void search(text);
-              }}
-            >
-              <Sparkles size={11} />
-              {text}
-              <ArrowUpRight size={11} />
-            </button>
-          ))}
-        </div>
-      )}
       {submitted ? (
         <section
           className="results-section"
@@ -210,17 +167,14 @@ export function SearchExperience({
             <div>
               <h2>
                 {loading
-                  ? "Finding your moments…"
+                  ? "Searching…"
                   : error
                     ? "Search interrupted"
-                    : `${results.length} ${results.length === 1 ? "moment" : "moments"} found`}{" "}
-                {!loading && !error && (
-                  <span className="count-pill">{results.length}</span>
-                )}
+                    : `${results.length} matching ${results.length === 1 ? "frame" : "frames"}`}
               </h2>
               <p className="result-query">For “{submitted}”</p>
             </div>
-            <span>RANKED BY VISUAL SIMILARITY</span>
+            <span>Most similar first</span>
           </div>
           {error ? (
             <div className="notice error" role="alert">
@@ -245,7 +199,7 @@ export function SearchExperience({
           ) : results.length === 0 ? (
             <div className="empty-panel">
               <Search size={30} strokeWidth={1} />
-              <h2>No frames found yet.</h2>
+              <h2>No matching frames</h2>
               <p>
                 {ready.length === 0
                   ? "Upload a video and wait for indexing to finish, then search again."
@@ -274,10 +228,7 @@ export function SearchExperience({
               </div>
               <div className="result-footer">
                 <Scan size={13} />
-                <span>
-                  Real frames from your videos. Scores are raw cosine
-                  similarity, not confidence percentages.
-                </span>
+                <span>Select a frame to play the video at that timestamp.</span>
                 <button
                   className="text-button"
                   onClick={() => void search(submitted)}
@@ -289,65 +240,24 @@ export function SearchExperience({
           )}
         </section>
       ) : (
-        <section className="welcome-card search-welcome">
-          <div className="welcome-copy">
-            <span className="eyebrow muted">
-              {ready.length
-                ? "YOUR FOOTAGE HAS SOMETHING TO SHOW YOU"
-                : "YOUR NEXT DISCOVERY STARTS HERE"}
-            </span>
-            <h2>
-              {ready.length ? (
-                <>
-                  A few words.
-                  <br />A whole new perspective.
-                </>
-              ) : (
-                <>
-                  A whole new way
-                  <br />
-                  to see your footage.
-                </>
-              )}
-            </h2>
-            <p>
-              {ready.length
-                ? "Describe a visual moment above. We’ll bring you the frames that look like it."
-                : "Add your first video, describe a visual moment, and go straight to the matching frame."}
-            </p>
-            {ready.length ? (
-              <button
-                className="button button-secondary"
-                onClick={() => input.current?.focus()}
-              >
-                Start exploring <ArrowRight size={17} />
-              </button>
-            ) : (
-              <Link href="/library?upload=1" className="button">
-                Upload your first video <ArrowRight size={17} />
-              </Link>
-            )}
-            <span className="file-note">
-              {ready.length
-                ? "Objects. Places. Colors. Moments."
-                : "MP4 · Up to 100 MB · 3 minutes"}
-            </span>
-          </div>
-          <FrameArt />
-        </section>
-      )}
-      {!submitted && (
-        <div className="search-explainer">
-          <div>
-            <Scan size={16} />
-            <span>Search what’s visible.</span>
-          </div>
+        <section className="empty-panel search-start">
+          <Search size={30} strokeWidth={1.5} />
+          <h2>
+            {ready.length
+              ? "Find a frame in your videos"
+              : "Start with a video"}
+          </h2>
           <p>
-            Describe the frame you’re looking for. We’ll point you to the
-            moment.
+            {ready.length
+              ? "Enter a visual description above. Matching frames will appear here."
+              : "Upload a video and wait for indexing to finish before searching."}
           </p>
-          <span>YOUR WORDS → YOUR FOOTAGE</span>
-        </div>
+          {!ready.length && !libraryLoading && !libraryError && (
+            <Link href="/library?upload=1" className="button button-secondary">
+              Upload video <ArrowRight size={16} />
+            </Link>
+          )}
+        </section>
       )}
       {selected && (
         <PlaybackOverlay
@@ -399,12 +309,12 @@ export function ResultCard({
       <div className="result-info">
         <h3 title={result.filename}>{result.filename}</h3>
         <div>
-          <span className="frame-label">MATCHING FRAME</span>
+          <span className="frame-label">Frame {index + 1}</span>
           <span
             className="cosine-score"
             title="Raw cosine similarity; not a confidence percentage"
           >
-            COSINE <strong>{result.similarity.toFixed(3)}</strong>
+            Cosine <strong>{result.similarity.toFixed(3)}</strong>
           </span>
         </div>
       </div>

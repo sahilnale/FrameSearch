@@ -27,7 +27,7 @@ beforeEach(() => {
 it("shows an empty library as zero videos, without a loading indicator or error", () => {
   render(<LibraryPage />);
   expect(screen.getByRole("heading", { name: "All videos 0" })).toBeTruthy();
-  expect(screen.getByText("A blank reel. Endless possibilities.")).toBeTruthy();
+  expect(screen.getByText("No videos yet")).toBeTruthy();
   expect(screen.queryByText("Loading your library…")).toBeNull();
   expect(screen.queryByRole("alert")).toBeNull();
 });
@@ -39,7 +39,7 @@ it("distinguishes an unreachable API from a verified empty library", async () =>
   expect(screen.getByRole("alert").textContent).toContain(
     "Cannot reach FrameSearch",
   );
-  expect(screen.queryByText("A blank reel. Endless possibilities.")).toBeNull();
+  expect(screen.queryByText("No videos yet")).toBeNull();
   expect(screen.queryByText("Loading your library…")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   await waitFor(() => expect(workspace.refresh).toHaveBeenCalledTimes(1));
