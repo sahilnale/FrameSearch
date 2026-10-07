@@ -63,6 +63,29 @@ type SearchRequest struct {
 	VideoID *string `json:"video_id"`
 }
 
+func (r *SearchRequest) validate() error {
+	r.Query = strings.TrimSpace(r.Query)
+	if n := utf8.RuneCountInString(r.Query); n < 1 || n > 500 {
+		return errors.New("query must contain 1 to 500 characters")
+	}
+	if r.Limit == nil {
+		n := 12
+		r.Limit = &n
+	}
+	if *r.Limit < 1 || *r.Limit > 30 {
+		return errors.New("limit must be between 1 and 30")
+	}
+	if r.VideoID != nil {
+		id, e := uuid.Parse(*r.VideoID)
+		if e != nil {
+			return errors.New("video_id must be a UUID")
+		}
+		s := id.String()
+		r.VideoID = &s
+	}
+	return nil
+}
+
 type SearchResult struct {
 	VideoID      string  `json:"video_id"`
 	FrameID      string  `json:"frame_id"`

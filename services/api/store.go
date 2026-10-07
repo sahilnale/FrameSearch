@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 
+	"strconv"
+	"strings"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -80,7 +83,36 @@ func (s *Store) Enqueue(ctx context.Context, id string, retry bool) (Video, *Job
 	v.ProcessingError = nil
 	return v, &j, nil
 }
+func vectorLiteral(v []float64) string {
+	p := make([]string, len(v))
+	for i, x := range v {
+		p[i] = strconv.FormatFloat(x, 'g', -1, 64)
+	}
+	return "[" + strings.Join(p, ",") + "]"
+}
 
+const searchSQL = `SELECT v.id::text,f.id::text,v.filename,f.timestamp_ms,f.thumbnail_key,
+ 1-(f.embedding <=> $1::vector) AS similarity
+ FROM video_frames f JOIN videos v ON v.id=f.video_id
+ WHERE v.status='ready' AND f.model_version=$2 AND ($3::uuid IS NULL OR v.id=$3::uuid)
+ ORDER BY f.embedding <=> $1::vector,f.id LIMIT $4`
+
+func (s *Store) Search(ctx context.Context, vec []float64, r SearchRequest) ([]SearchResult, error) {
+	rows, e := s.pool.Query(ctx, searchSQL, vectorLiteral(vec), modelVersion, r.VideoID, *r.Limit)
+	if e != nil {
+		return nil, e
+	}
+	defer rows.Close()
+	out := []SearchResult{}
+	for rows.Next() {
+		var x SearchResult
+		if e := rows.Scan(&x.VideoID, &x.FrameID, &x.Filename, &x.Timestamp, &x.ThumbnailKey, &x.Similarity); e != nil {
+			return nil, e
+		}
+		out = append(out, x)
+	}
+	return out, rows.Err()
+}
 func (s *Store) Ping(ctx context.Context) error {
 	var ok bool
 	// A connection alone is insufficient: migrations and vector extension must exist.

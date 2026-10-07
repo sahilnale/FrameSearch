@@ -152,6 +152,7 @@ func (a *API) Handler() http.Handler {
 		r.Post("/videos/{id}/complete", a.complete)
 		r.Post("/videos/{id}/retry", a.retry)
 		r.Get("/videos/{id}/playback-url", a.playback)
+		r.Post("/search", a.search)
 	})
 	return r
 }
@@ -305,4 +306,44 @@ func (a *API) playback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonResponse(w, 200, map[string]any{"url": url, "expires_in_seconds": 900})
+}
+func (a *API) search(w http.ResponseWriter, r *http.Request) {
+	var x SearchRequest
+	if !decode(w, r, &x) {
+		return
+	}
+	if e := x.validate(); e != nil {
+		apiError(w, 400, "invalid_search", e.Error())
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	vec, version, e := a.processor.Embed(ctx, x.Query)
+	if e != nil {
+		slog.Warn("text embedding failed", "error", e)
+		apiError(w, 502, "processor_unavailable", "text embedding service failed")
+		return
+	}
+	if e = validateEmbedding(vec, version); e != nil {
+		slog.Warn("invalid processor embedding", "error", e)
+		apiError(w, 502, "invalid_embedding", e.Error())
+		return
+	}
+	results, e := a.repo.Search(r.Context(), vec, x)
+	if e != nil {
+		internalError(w, e)
+		return
+	}
+	if results == nil {
+		results = []SearchResult{}
+	}
+	for i := range results {
+		url, e := a.storage.GetURL(r.Context(), results[i].ThumbnailKey)
+		if e != nil {
+			internalError(w, e)
+			return
+		}
+		results[i].ThumbnailURL = url
+	}
+	jsonResponse(w, 200, map[string]any{"query": x.Query, "results": results})
 }

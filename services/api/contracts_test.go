@@ -4,6 +4,8 @@ import (
 	"math"
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 func TestUploadValidation(t *testing.T) {
@@ -38,7 +40,38 @@ func TestUploadValidation(t *testing.T) {
 	}
 }
 func ptr[T any](x T) *T { return &x }
-
+func TestSearchValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		r     SearchRequest
+		valid bool
+	}{
+		{"default limit", SearchRequest{Query: " a car "}, true},
+		{"minimum", SearchRequest{Query: "car", Limit: ptr(1)}, true},
+		{"maximum", SearchRequest{Query: "car", Limit: ptr(30)}, true},
+		{"zero", SearchRequest{Query: "car", Limit: ptr(0)}, false},
+		{"negative", SearchRequest{Query: "car", Limit: ptr(-1)}, false},
+		{"too large", SearchRequest{Query: "car", Limit: ptr(31)}, false},
+		{"blank", SearchRequest{Query: " \n "}, false},
+		{"length boundary", SearchRequest{Query: strings.Repeat("車", 500)}, true},
+		{"too long", SearchRequest{Query: strings.Repeat("車", 501)}, false},
+		{"filter", SearchRequest{Query: "car", VideoID: ptr(uuid.NewString())}, true},
+		{"bad filter", SearchRequest{Query: "car", VideoID: ptr("bad-id")}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := tc.r.validate()
+			if (e == nil) != tc.valid {
+				t.Fatalf("valid=%v error=%v", tc.valid, e)
+			}
+			if tc.valid && tc.r.Limit == nil {
+				t.Fatal("missing default limit")
+			}
+			if tc.name == "default limit" && (tc.r.Query != "a car" || *tc.r.Limit != 12) {
+				t.Fatalf("wrong defaults: %+v", tc.r)
+			}
+		})
+	}
+}
 func TestLegalEnqueueTransitions(t *testing.T) {
 	for _, status := range []string{"awaiting_upload", "queued", "processing", "ready", "failed", "invalid"} {
 		for _, retry := range []bool{false, true} {
