@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"errors"
-
+	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -124,4 +125,67 @@ func (s *Store) Ping(ctx context.Context) error {
 		return errors.New("database migration not applied")
 	}
 	return nil
+}
+func (s *Store) Reconcile(ctx context.Context, p Publisher, stale bool, age time.Duration) (int, error) {
+	if stale {
+		tx, e := s.pool.Begin(ctx)
+		if e != nil {
+			return 0, e
+		}
+		defer tx.Rollback(ctx)
+		// Caller must stop the sole processor before reclaiming; no lease is claimed.
+		rows, e := tx.Query(ctx, `SELECT v.id::text,j.id::text FROM videos v JOIN processing_jobs j ON j.video_id=v.id WHERE j.status='processing' AND j.updated_at < now()-($1 * interval '1 second') ORDER BY v.id FOR UPDATE OF v,j`, age.Seconds())
+		if e != nil {
+			return 0, e
+		}
+		jobs := []Job{}
+		for rows.Next() {
+			var j Job
+			if e = rows.Scan(&j.VideoID, &j.ID); e != nil {
+				rows.Close()
+				return 0, e
+			}
+			jobs = append(jobs, j)
+		}
+		rows.Close()
+		if e = rows.Err(); e != nil {
+			return 0, e
+		}
+		for _, j := range jobs {
+			if _, e = tx.Exec(ctx, `UPDATE processing_jobs SET status='queued',updated_at=now(),last_error='requeued after processor crash' WHERE id=$1`, j.ID); e != nil {
+				return 0, e
+			}
+			if _, e = tx.Exec(ctx, `UPDATE videos SET status='queued',processing_error=NULL,updated_at=now() WHERE id=$1`, j.VideoID); e != nil {
+				return 0, e
+			}
+		}
+		if e = tx.Commit(ctx); e != nil {
+			return 0, e
+		}
+	}
+	rows, e := s.pool.Query(ctx, `SELECT id::text,video_id::text FROM processing_jobs WHERE status='queued' ORDER BY updated_at,id`)
+	if e != nil {
+		return 0, e
+	}
+	jobs := []Job{}
+	for rows.Next() {
+		var j Job
+		if e = rows.Scan(&j.ID, &j.VideoID); e != nil {
+			rows.Close()
+			return 0, e
+		}
+		jobs = append(jobs, j)
+	}
+	rows.Close()
+	if e = rows.Err(); e != nil {
+		return 0, e
+	}
+	n := 0
+	for _, j := range jobs {
+		if e = p.Publish(ctx, newEvent(j)); e != nil {
+			return n, fmt.Errorf("publish queued job %s: %w", j.ID, e)
+		}
+		n++
+	}
+	return n, nil
 }
