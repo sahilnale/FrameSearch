@@ -29,9 +29,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(api.playback).mockResolvedValue(ticket);
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
-it("uses a fresh playback ticket for a paused first-frame preview", async () => {
+it("uses a fresh playback ticket for a paused midpoint preview", async () => {
   const { container } = render(
     <FootagePreview video={video} selected={false} onSelect={vi.fn()} />,
   );
@@ -43,7 +46,7 @@ it("uses a fresh playback ticket for a paused first-frame preview", async () => 
   expect(media.autoplay).toBe(false);
   Object.defineProperty(media, "duration", { value: 18 });
   fireEvent.loadedMetadata(media);
-  expect(media.currentTime).toBe(0.1);
+  expect(media.currentTime).toBe(9);
   fireEvent.loadedData(media);
   expect(container.querySelector(".spinner")).toBeNull();
   expect(screen.getByText("00:18")).toBeTruthy();
@@ -99,4 +102,48 @@ it("aborts an unfinished ticket request when the shelf is removed", async () => 
   unmount();
   expect(signal.aborted).toBe(true);
   await act(async () => resolve(ticket));
+});
+
+it("previews muted footage on hover and stops at the poster frame when leaving", async () => {
+  vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
+  const play = vi
+    .spyOn(HTMLMediaElement.prototype, "play")
+    .mockResolvedValue(undefined);
+  const pause = vi
+    .spyOn(HTMLMediaElement.prototype, "pause")
+    .mockImplementation(() => {});
+  const { container } = render(
+    <FootagePreview video={video} selected={false} onSelect={vi.fn()} />,
+  );
+  await waitFor(() => expect(container.querySelector("video")).toBeTruthy());
+  const player = container.querySelector("video")!;
+  Object.defineProperty(player, "duration", { value: 18 });
+  fireEvent.loadedMetadata(player);
+  fireEvent.loadedData(player);
+  const card = screen.getByRole("button", { name: "Search user-footage.mp4" });
+  fireEvent.mouseEnter(card);
+  expect(play).toHaveBeenCalledOnce();
+  expect(player.muted).toBe(true);
+  fireEvent.play(player);
+  expect(screen.getByText("Previewing")).toBeTruthy();
+  player.currentTime = 12;
+  fireEvent.mouseLeave(card);
+  expect(pause).toHaveBeenCalledOnce();
+  expect(player.currentTime).toBe(9);
+});
+
+it("leaves previews still when motion or hover is unavailable", async () => {
+  vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false }));
+  const play = vi
+    .spyOn(HTMLMediaElement.prototype, "play")
+    .mockResolvedValue(undefined);
+  const { container } = render(
+    <FootagePreview video={video} selected={false} onSelect={vi.fn()} />,
+  );
+  await waitFor(() => expect(container.querySelector("video")).toBeTruthy());
+  fireEvent.loadedData(container.querySelector("video")!);
+  fireEvent.mouseEnter(
+    screen.getByRole("button", { name: "Search user-footage.mp4" }),
+  );
+  expect(play).not.toHaveBeenCalled();
 });
