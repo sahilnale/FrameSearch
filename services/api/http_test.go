@@ -289,7 +289,19 @@ func TestPublishGap(t *testing.T) {
 		t.Fatalf("wrong event fields: %s", b)
 	}
 }
-
+func TestRetryHTTP(t *testing.T) {
+	a, repo, _, pub, _ := fixture()
+	repo.video.Status = "failed"
+	repo.video.ProcessingError = ptr("invalid video")
+	h := a.Handler()
+	base := "/api/v1/videos/" + repo.video.ID
+	assertError(t, request(h, "POST", base+"/complete", ""), 409, "invalid_state")
+	w := request(h, "POST", base+"/retry", "")
+	if w.Code != 200 || repo.video.Status != "queued" || repo.video.ProcessingError != nil || repo.jobs != 1 || len(pub.events) != 1 {
+		t.Fatalf("retry failed: %s", w.Body.String())
+	}
+	assertError(t, request(h, "POST", base+"/retry", ""), 409, "invalid_state")
+}
 func TestVideoJSONAndPlayback(t *testing.T) {
 	a, repo, _, _, _ := fixture()
 	h := a.Handler()
