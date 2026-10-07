@@ -11,8 +11,8 @@ Each feature gets a separate commit after its focused checks.
 | Pinned CPU OpenCLIP model, text/image embeddings | Implemented, verified, pushed | Core commit `500fc9d`; 22 unit tests and real CPU inference pass |
 | Internal text HTTP endpoint and readiness | Implemented, verified, pushed | Commit `de4cb2a`; 38 unit tests and real HTTP test pass |
 | Processor container packaging | Implemented, verified, pushed | Commit `aa6df84`; Linux ARM64 build and live real HTTP check pass |
-| FFprobe upload validation | Implemented, verified | 35 focused unit tests and 7 real-media checks pass |
-| Timestamped FFmpeg sampling | Next feature | Not run |
+| FFprobe upload validation | Implemented, verified, pushed | Commit `32f2652`; 35 focused unit tests and 7 real-media checks pass |
+| Timestamped FFmpeg sampling | Implemented, verified | Full suite: 121 passed, including real decoding and all real-model checks |
 | Kafka, MinIO, pgvector indexing and recovery | Planned | Not run |
 | Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
 
@@ -80,15 +80,45 @@ Only successfully executed checks will be marked verified here.
 - Ruff checks and formatting: passed.
 - No storage, database, or Kafka operations are performed by this feature.
 
+## Frame extraction checks
+
+- New sampling tests: 20 unit checks, 18 actual FFmpeg/media checks, and one
+  opt-in real decode-to-OpenCLIP check. All passed in Linux ARM64 Docker.
+- Full processor suite with current source mounted read-only and genuine cached
+  weights mounted read-only, `HF_HUB_OFFLINE=1`,
+  `FRAMESEARCH_REAL_MODEL_TEST=1`, `IMAGE_BATCH_SIZE=2`: **121 passed, no skips**
+  (13.97 seconds). No new model download was needed.
+- Validated 0.2/3/3.2/6.2-second boundaries and exactly 60 frames from a 180-second
+  source, with timestamps `0, 3000, ..., 177000`.
+- The 29.97 fps check compares sampling against all source frame timestamps from
+  independent FFprobe output. At 36 seconds the selected timestamp is `36002`,
+  preventing accumulated drift from sampling relative to the previous frame.
+- Sparse/VFR input retains real timestamps and skips empty sampling intervals.
+- A native in-app-browser check over a temporary localhost server with byte-range
+  support found that resetting source start offsets produces incorrect seeks.
+  The sampler preserves source PTS. Real regressions cover 0.25/2/10-second
+  offsets and verify shifted frames' actual colors. Browser coverage is limited
+  to these fixtures and this engine; the frontend is not implemented yet.
+- Verified audio-first stream mapping, landscape/portrait/non-square-pixel
+  aspect ratio, maximum 640-pixel JPEG edge, and repeatable filenames/content.
+- Corrupt compressed packets with a readable MP4 header fail decoding. Temporary
+  outputs are cleaned on success, tool failure, and downstream consumer errors;
+  supplied source files remain intact.
+- Actual extracted JPEGs produce finite normalized 512-dimensional vectors from
+  the frozen OpenCLIP model, across bounded batches.
+- Built `framesearch-processor:sampling-checkpoint` successfully. Verified actual
+  extraction in the packaged image as production UID 10001, using a read-only
+  source fixture: timestamps `0, 3000, 6000`, output cleanup, and source retention
+  all passed. This check imports the packaged sampler without mounting source code.
+- Ruff checks/formatting: passed. No Kafka, MinIO, or database operations added.
+
 ## Remaining sequence
 
-1. Accurate timestamped FFmpeg sampling at 3-second intervals, maximum 60 frames,
-   with temporary-file cleanup and actual decoding tests.
-2. Source download and deterministic thumbnail upload through MinIO.
-3. Transactional PostgreSQL job claims, frame upserts, and terminal states.
-4. Kafka consumption, bounded retries, offset handling, and service lifecycle.
-5. Real backend/processor end-to-end smoke test using the shared infrastructure.
-6. Frontend upload, search, and playback, after the backend integration works.
+1. Source download and deterministic thumbnail upload through MinIO.
+2. Transactional PostgreSQL job claims, frame upserts, and terminal states.
+3. Kafka consumption, bounded retries, offset handling, and service lifecycle.
+4. Real backend/processor end-to-end smoke test using the shared infrastructure.
+5. Frontend upload, search, and playback, after the backend integration works.
 
 Each feature remains a separate tested commit and is pushed at its checkpoint.
 Full end-to-end functionality is not yet implemented.
