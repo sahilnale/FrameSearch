@@ -160,6 +160,30 @@ func assertError(t *testing.T, w *httptest.ResponseRecorder, status int, code st
 		t.Fatalf("unexpected error: %+v", x)
 	}
 }
+func TestUploadHTTP(t *testing.T) {
+	a, repo, _, _, _ := fixture()
+	w := request(a.Handler(), "POST", "/api/v1/videos/upload-url", `{"filename":"clip.mp4","content_type":"video/mp4","size_bytes":123}`)
+	if w.Code != 201 {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	out := decodeObject(t, w)
+	if len(out) != 3 {
+		t.Fatalf("unexpected fields: %s", w.Body.String())
+	}
+	var id, key, url string
+	json.Unmarshal(out["video_id"], &id)
+	json.Unmarshal(out["object_key"], &key)
+	json.Unmarshal(out["upload_url"], &url)
+	if _, e := uuid.Parse(id); e != nil {
+		t.Fatal(e)
+	}
+	if key != "videos/"+id+"/original.mp4" || !strings.HasPrefix(url, "http://localhost:9000/") {
+		t.Fatalf("wrong keys or browser URL: %s", w.Body.String())
+	}
+	if repo.video.Status != "awaiting_upload" || repo.video.Size != 123 {
+		t.Fatalf("wrong saved state: %+v", repo.video)
+	}
+}
 
 func TestVideoJSONAndPlayback(t *testing.T) {
 	a, repo, _, _, _ := fixture()

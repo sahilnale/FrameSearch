@@ -22,7 +22,10 @@ func scanVideo(row scanner) (Video, error) {
 	}
 	return v, e
 }
-
+func (s *Store) Create(ctx context.Context, v Video) error {
+	_, e := s.pool.Exec(ctx, `INSERT INTO videos(id,filename,object_key,content_type,size_bytes,status) VALUES($1,$2,$3,$4,$5,'awaiting_upload')`, v.ID, v.Filename, v.ObjectKey, v.ContentType, v.Size)
+	return e
+}
 func (s *Store) Get(ctx context.Context, id string) (Video, error) {
 	return scanVideo(s.pool.QueryRow(ctx, "SELECT "+videoColumns+" FROM videos WHERE id=$1", id))
 }

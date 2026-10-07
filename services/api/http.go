@@ -146,6 +146,7 @@ func (a *API) Handler() http.Handler {
 	})
 	r.Get("/health/ready", a.ready)
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Post("/videos/upload-url", a.upload)
 		r.Get("/videos", a.list)
 		r.Get("/videos/{id}", a.detail)
 	})
@@ -189,7 +190,29 @@ func (a *API) ready(w http.ResponseWriter, r *http.Request) {
 	}
 	jsonResponse(w, status, map[string]any{"status": "ready", "dependencies": deps})
 }
-
+func (a *API) upload(w http.ResponseWriter, r *http.Request) {
+	var x UploadRequest
+	if !decode(w, r, &x) {
+		return
+	}
+	if e := x.validate(); e != nil {
+		apiError(w, 400, "invalid_upload", e.Error())
+		return
+	}
+	id := uuid.NewString()
+	key := "videos/" + id + "/original.mp4"
+	url, e := a.storage.PutURL(r.Context(), key)
+	if e != nil {
+		internalError(w, e)
+		return
+	}
+	v := Video{ID: id, Filename: x.Filename, ObjectKey: key, ContentType: x.ContentType, Size: x.Size}
+	if e = a.repo.Create(r.Context(), v); e != nil {
+		internalError(w, e)
+		return
+	}
+	jsonResponse(w, 201, map[string]string{"video_id": id, "upload_url": url, "object_key": key})
+}
 func (a *API) list(w http.ResponseWriter, r *http.Request) {
 	vs, e := a.repo.List(r.Context())
 	if e != nil {
