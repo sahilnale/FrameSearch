@@ -319,6 +319,16 @@ func TestVideoJSONAndPlayback(t *testing.T) {
 			t.Fatalf("missing %s", field)
 		}
 	}
+	assertError(t, request(h, "GET", base+"/playback-url", ""), 409, "invalid_state")
+	repo.video.Status = "ready"
+	w = request(h, "GET", base+"/playback-url", "")
+	if w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	out = decodeObject(t, w)
+	if len(out) != 2 || string(out["expires_in_seconds"]) != "900" {
+		t.Fatal(w.Body.String())
+	}
 	repo.video = Video{}
 	w = request(h, "GET", "/api/v1/videos", "")
 	out = decodeObject(t, w)
