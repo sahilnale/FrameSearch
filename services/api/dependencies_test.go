@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
-
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestSignedURLsUseBrowserEndpoint(t *testing.T) {
@@ -63,5 +65,72 @@ func TestS3HeadHTTP(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+func TestProcessorClientHTTP(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status int
+		body   string
+		valid  bool
+	}{
+		{"valid response", 200, func() string {
+			b, _ := json.Marshal(map[string]any{"embedding": unitVector(), "model_version": modelVersion})
+			return string(b)
+		}(), true},
+		{"malformed response", 200, `{`, false},
+		{"trailing response", 200, `{"embedding":[]} {}`, false},
+		{"non-200 response", 503, `{"error":"loading model"}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != "POST" || r.URL.Path != "/embed/text" || r.Header.Get("Content-Type") != "application/json" {
+					t.Errorf("unexpected processor request: %s %s", r.Method, r.URL.Path)
+				}
+				var x map[string]string
+				if e := json.NewDecoder(r.Body).Decode(&x); e != nil || len(x) != 1 || x["text"] != "a car" {
+					t.Errorf("wrong processor payload: %+v error=%v", x, e)
+				}
+				w.WriteHeader(tc.status)
+				w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+			p := &ProcessorClient{srv.URL, srv.Client()}
+			vec, version, e := p.Embed(context.Background(), "a car")
+			if (e == nil) != tc.valid {
+				t.Fatalf("valid=%v error=%v", tc.valid, e)
+			}
+			if tc.valid {
+				if e := validateEmbedding(vec, version); e != nil {
+					t.Fatal(e)
+				}
+			}
+		})
+	}
+}
+func TestProcessorDeadline(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.Copy(io.Discard, r.Body); <-r.Context().Done() }))
+	defer srv.Close()
+	p := &ProcessorClient{srv.URL, srv.Client()}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if _, _, e := p.Embed(ctx, "a car"); e == nil {
+		t.Fatal("processor request ignored deadline")
+	}
+}
+func TestProcessorReadiness(t *testing.T) {
+	for _, status := range []int{200, 503} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/health/ready" || r.Method != "GET" {
+				t.Errorf("wrong readiness request")
+			}
+			w.WriteHeader(status)
+		}))
+		p := &ProcessorClient{srv.URL, &http.Client{Timeout: time.Second}}
+		e := p.Ping(context.Background())
+		srv.Close()
+		if (e == nil) != (status == 200) {
+			t.Fatalf("status=%d error=%v", status, e)
+		}
 	}
 }
