@@ -1,9 +1,10 @@
 # FrameSearch processor
 
 Developer 2's processor implementation, following master specification section 13.
-This checkpoint contains the real CPU OpenCLIP embedding core and internal text
-HTTP service. Video decoding, Kafka consumption, storage, and database transitions
-are subsequent features.
+This checkpoint contains the real CPU OpenCLIP embedding core, internal text
+HTTP service, and FFprobe upload validation. Frame extraction, Kafka consumption,
+storage, and database transitions are subsequent features. The validation module
+is not yet connected to an ingestion worker.
 
 ## Install and test the embedding core
 
@@ -137,6 +138,41 @@ PYTHONPATH=. uv run --frozen python tests/check_service.py --url http://localhos
 This checks the model version, readiness, liveness, and genuine finite normalized
 512-dimensional text response. It does not claim video indexing or semantic
 retrieval is complete.
+
+## Validate downloaded video files
+
+`framesearch_processor.media.probe_video(path, expected_size_bytes)` inspects the
+actual local file with FFprobe. It enforces the shared 100 MiB / 180-second limits,
+checks the downloaded size against the upload declaration, and returns the video
+stream index, dimensions, duration, and start timestamp. It checks the MP4
+container/brand rather than trusting the filename. Audio-only files and embedded
+cover art do not count as playable video.
+
+Invalid media raises `InvalidVideo` with an actionable reason. Missing tools,
+probe timeouts, and malformed tool output raise `MediaToolError`, so the later
+worker can distinguish media rejection from infrastructure failure. FFprobe has
+a 15-second timeout and can access only local files. Metadata validation alone
+does not establish that every frame decodes; the next extraction feature must
+check actual decoding before indexing can succeed.
+
+The real-media tests generate MP4, MOV, Matroska, audio-only, and duration-boundary
+fixtures with FFmpeg, then run real FFprobe. They skip on hosts without those
+binaries. From the repository root, run the full suite in a disposable processor
+container after building the image above:
+
+```sh
+docker run --rm --user 0 --workdir /work \
+  --mount "type=bind,source=$PWD/services/processor,target=/work,readonly" \
+  -e PYTHONDONTWRITEBYTECODE=1 \
+  -e UV_PROJECT_ENVIRONMENT=/app/.venv -e UV_CACHE_DIR=/tmp/uv-cache \
+  framesearch-processor sh -c \
+  'uv sync --frozen --project /work --python /app/.venv/bin/python --quiet && /app/.venv/bin/python -m pytest -q -p no:cacheprovider'
+```
+
+This installs locked test dependencies in the disposable container and mounts
+source read-only; it does not change the production image's non-root runtime.
+Latest container run: 80 passed, two opt-in real-model tests skipped. Both real
+model checks were verified at the earlier embedding/HTTP checkpoints.
 
 ## Integration notes for Developer 1
 
