@@ -1,0 +1,48 @@
+{
+  "evaluated_on": "2026-10-07",
+  "frontend_feature_commit": "6999b5d",
+  "theme_commit": "cd01879",
+  "scope": "Final production frontend against the existing genuine temporary backend; upload ingestion was not repeated in this redesign check",
+  "theme": "user-selected light workspace with white, cool gray and blue",
+  "unit_tests_passed": 15,
+  "unit_test_files": 4,
+  "unit_test_duration_seconds": 1.68,
+  "lint": "passed with zero warnings",
+  "typecheck": "passed",
+  "production_container_build": "passed",
+  "ready_videos": 3,
+  "manual_search_query": "a passenger train",
+  "unfiltered_result_count": 12,
+  "filtered_result_count": 6,
+  "filtered_loaded_thumbnails": 6,
+  "score_display": "Similarity label with unmodified raw cosine values to three decimals and an explanatory tooltip",
+  "playback": {
+    "matching_timestamp_ms": 12000,
+    "observed_current_time_seconds": 12.221147,
+    "duration_seconds": 18,
+    "ready_state": 4,
+    "media_error": null,
+    "centered_dialog": {
+      "x": 220,
+      "y": 133.1171875,
+      "width": 1000,
+      "height": 733.765625
+    },
+    "escape_open_dialogs": 0,
+    "escape_focus_restored_to": "Play passenger-train.mp4 at 00:12"
+  },
+  "search_responsive_checks": [
+    { "viewport_width": 320, "document_width": 320 },
+    { "viewport_width": 390, "document_width": 390 },
+    { "viewport_width": 1440, "document_width": 1440 }
+  ],
+  "library_responsive_check": {
+    "viewport_width": 320,
+    "document_width": 320,
+    "ready_videos": 3
+  },
+  "selected_palette_pairs_checked": 10,
+  "lowest_selected_text_contrast_ratio": 4.661,
+  "remaining_verification": "Broader browser/user testing and the earlier full shared Compose/recovery checks remain separate",
+  "data_lifetime": "Existing three clips retained in the same temporary demo; no backend containers or data were replaced"
+}

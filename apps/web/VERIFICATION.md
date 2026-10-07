@@ -1,5 +1,36 @@
 # Frontend verification — 2026-10-07
 
+## Light interface redesign
+
+Current feature commit: `6999b5d`. Focused checkpoints and research are in
+[DESIGN.md](DESIGN.md). All changes are under `apps/web`; the same genuine backend
+and three ready sample videos were retained. No upload ingestion was repeated for
+this visual change.
+
+- `npm run test`: **15 passed**, four files, 1.68s. Three added cases prevent
+  first-upload guidance while the library is loading/unavailable or already indexing.
+- `npm run lint`, `npm run typecheck`: passed with zero lint warnings. Production
+  Docker build passed for the final source, including Next.js TypeScript compilation.
+- Real browser search returned 12 actual frames across the library and six with
+  the train video selected. All six filtered thumbnails loaded. Results retain
+  true timestamps and raw cosine values under the plain Similarity label.
+- Selecting **00:12**, then returning to the matching frame, produced native
+  playback at **12.221147s**, duration **18s**, readyState **4**, no media error.
+  At 1440px the 1000px player is centered (x = 220px); Escape closed it and restored
+  focus to the selected result.
+- Search has no horizontal overflow at **320, 390 and 1440px**. The library also
+  fit 320px with all three ready videos. Viewport overrides were reset afterward.
+- Ten selected text/background pairs exceed 4.5:1. The lowest was the placeholder
+  at **4.661:1**. This calculation is limited to the selected palette pairs.
+
+Raw observations: `evaluations/redesign-smoke.json`. Ignored screenshots under
+`test-results/` include the generic starting state, real search results, phone
+layout and centered player. These checks used in-app Chromium; broader browser
+and user testing remains separate. The shared Compose/recovery scope below is
+unchanged.
+
+## Original ingestion and frontend checkpoints
+
 Branch: `codex/processor-core`. Feature checkpoints: foundation `e8ead3d`, upload
 `5644497`, search `6014fbe`, playback `93c4063`, container `6c7cec1`, library
 regressions `6dd3e01`. Developer 1 files were not modified.
