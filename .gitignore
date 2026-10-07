@@ -1,0 +1,46 @@
+# Local environment values; commit examples with placeholder values only.
+.env
+.env.*
+!.env.example
+!.env.*.example
+.envrc
+
+# Private keys, certificates with keys, and credential stores.
+*.key
+*.pem
+*.p12
+*.pfx
+*.keystore
+id_rsa
+id_ed25519
+credentials.json
+credentials-*.json
+service-account*.json
+secrets/
+.secrets/
+.aws/
+.ssh/
+.docker/
+.config/gcloud/
+.netrc
+.pgpass
+.npmrc
+.pypirc
+
+# Local logs and database exports can contain private data.
+*.log
+logs/
+*.dump
+*.sql.gz
+
+# Generated dependencies, build output, and local editor/OS metadata.
+node_modules/
+.next/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+.idea/
+.vscode/
