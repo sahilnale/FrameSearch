@@ -899,6 +899,34 @@ progress::-moz-progress-bar {
   gap: 20px;
   padding: 24px;
 }
+.video-open {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
+  min-width: 0;
+  min-height: 60px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  color: var(--text);
+}
+.video-open .video-info {
+  min-width: 0;
+}
+.video-symbol.video-symbol-play {
+  color: var(--accent);
+  background: var(--accent-soft);
+  transition: background 0.15s;
+}
+.video-open:hover .video-symbol-play {
+  background: #dfe6ff;
+}
+.video-open:hover .video-filename {
+  color: var(--accent);
+}
 .video-symbol {
   display: flex;
   flex-direction: column;
@@ -923,13 +951,17 @@ progress::-moz-progress-bar {
   flex: 1;
   min-width: 0;
 }
-.video-info h3 {
+.video-info h3,
+.video-filename {
+  display: block;
   font-size: 14px;
   font-weight: 650;
   margin: 0 0 5px;
   overflow-wrap: anywhere;
 }
-.video-info p {
+.video-info p,
+.video-description {
+  display: block;
   color: var(--muted);
   font-size: 12px;
   margin: 0;
@@ -1207,6 +1239,10 @@ progress::-moz-progress-bar {
   }
   .video-info {
     min-width: calc(100% - 72px);
+  }
+  .video-open {
+    flex-basis: 100%;
+    gap: 12px;
   }
   .status-badge {
     margin-left: 64px;

@@ -1,18 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import { ArrowUpRight, Film, RefreshCw } from "lucide-react";
 import { useWorkspace } from "@/components/workspace";
 import { UploadPanel } from "@/components/upload-panel";
 import { VideoRow } from "@/components/video-row";
+import { PlaybackOverlay } from "@/components/playback-overlay";
+import type { Video } from "@/lib/contracts";
 
 export default function LibraryPage() {
   const { videos, loading, error, refresh } = useWorkspace();
+  const [selected, setSelected] = useState<Video | null>(null);
   return (
     <div className="page-content">
       <section className="intro">
         <div>
           <h1>Video library</h1>
-          <p>Upload videos and track when they’re ready to search.</p>
+          <p>Upload videos, watch them, and search their frames.</p>
         </div>
       </section>
       <UploadPanel />
@@ -52,10 +56,22 @@ export default function LibraryPage() {
       ) : videos.length > 0 ? (
         <div className="video-list">
           {videos.map((video) => (
-            <VideoRow key={video.id} video={video} />
+            <VideoRow
+              key={video.id}
+              video={video}
+              onPlay={() => setSelected(video)}
+            />
           ))}
         </div>
       ) : null}
+      {selected && (
+        <PlaybackOverlay
+          key={selected.id}
+          videoId={selected.id}
+          filename={selected.filename}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </div>
   );
 }
