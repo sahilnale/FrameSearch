@@ -88,6 +88,7 @@ export function SearchExperience({
     <div className="page-content search-page">
       <section className="intro">
         <div>
+          <div className="workspace-label">Visual search</div>
           <h1>Search your videos</h1>
           <p>
             Describe what you’re looking for and jump to the matching frame.
