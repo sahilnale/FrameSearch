@@ -185,6 +185,111 @@ func TestUploadHTTP(t *testing.T) {
 	}
 }
 
+func TestCompleteIdempotency(t *testing.T) {
+	a, repo, storage, pub, _ := fixture()
+	path := "/api/v1/videos/" + repo.video.ID + "/complete"
+	h := a.Handler()
+	for i := 0; i < 2; i++ {
+		w := request(h, "POST", path, "")
+		if w.Code != 200 {
+			t.Fatalf("complete %d: %s", i, w.Body.String())
+		}
+		out := decodeObject(t, w)
+		if len(out) != 2 || string(out["status"]) != `"queued"` {
+			t.Fatalf("wrong contract: %s", w.Body.String())
+		}
+	}
+	if repo.jobs != 1 || len(pub.events) != 1 {
+		t.Fatalf("duplicate work: jobs=%d events=%d", repo.jobs, len(pub.events))
+	}
+	for _, status := range []string{"processing", "ready"} {
+		repo.video.Status = status
+		storage.err = errors.New("storage down")
+		w := request(h, "POST", path, "")
+		if w.Code != 200 {
+			t.Fatalf("repeat %s should not need storage: %s", status, w.Body.String())
+		}
+		out := decodeObject(t, w)
+		if string(out["status"]) != `"`+status+`"` {
+			t.Fatal(w.Body.String())
+		}
+	}
+	if repo.jobs != 1 || len(pub.events) != 1 {
+		t.Fatal("processing/ready repeat created work")
+	}
+}
+func TestConcurrentCompleteHTTP(t *testing.T) {
+	a, repo, _, pub, _ := fixture()
+	path := "/api/v1/videos/" + repo.video.ID + "/complete"
+	h := a.Handler()
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			w := request(h, "POST", path, "")
+			if w.Code != 200 {
+				t.Errorf("status=%d body=%s", w.Code, w.Body.String())
+			}
+		}()
+	}
+	wg.Wait()
+	if repo.jobs != 1 || len(pub.events) != 1 {
+		t.Fatalf("duplicate work: jobs=%d events=%d", repo.jobs, len(pub.events))
+	}
+}
+func TestCompleteObjectValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		info   ObjectInfo
+		err    error
+		status int
+		code   string
+	}{
+		{"missing", ObjectInfo{}, errObjectMissing, 409, "upload_missing"},
+		{"size mismatch", ObjectInfo{124, "video/mp4"}, nil, 409, "upload_mismatch"},
+		{"content mismatch", ObjectInfo{123, "image/png"}, nil, 409, "upload_mismatch"},
+		{"storage unavailable", ObjectInfo{}, errors.New("down"), 503, "dependency_unavailable"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a, repo, s, pub, _ := fixture()
+			s.info = tc.info
+			s.err = tc.err
+			assertError(t, request(a.Handler(), "POST", "/api/v1/videos/"+repo.video.ID+"/complete", ""), tc.status, tc.code)
+			if repo.jobs != 0 || len(pub.events) != 0 || repo.video.Status != "awaiting_upload" {
+				t.Fatal("invalid object created work")
+			}
+		})
+	}
+}
+func TestPublishGap(t *testing.T) {
+	a, repo, _, pub, _ := fixture()
+	pub.err = errors.New("Kafka unavailable")
+	path := "/api/v1/videos/" + repo.video.ID + "/complete"
+	h := a.Handler()
+	assertError(t, request(h, "POST", path, ""), 503, "queued_publish_failed")
+	if repo.video.Status != "queued" || repo.jobs != 1 {
+		t.Fatal("durable queued state lost")
+	}
+	w := request(h, "POST", path, "")
+	if w.Code != 200 || repo.jobs != 1 || len(pub.events) != 1 {
+		t.Fatalf("repeat complete should preserve queue and not republish: %s", w.Body.String())
+	}
+	e := pub.events[0]
+	if e.EventType != "media.uploaded" || e.SchemaVersion != 1 || e.VideoID != repo.video.ID || e.JobID == "" || e.CreatedAt.IsZero() {
+		t.Fatalf("wrong envelope: %+v", e)
+	}
+	if _, err := uuid.Parse(e.EventID); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(e)
+	var out map[string]any
+	json.Unmarshal(b, &out)
+	if len(out) != 6 {
+		t.Fatalf("wrong event fields: %s", b)
+	}
+}
+
 func TestVideoJSONAndPlayback(t *testing.T) {
 	a, repo, _, _, _ := fixture()
 	h := a.Handler()

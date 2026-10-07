@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -44,6 +45,40 @@ func (s *Store) List(ctx context.Context) ([]Video, error) {
 		out = append(out, v)
 	}
 	return out, rows.Err()
+}
+func (s *Store) Enqueue(ctx context.Context, id string, retry bool) (Video, *Job, error) {
+	tx, e := s.pool.Begin(ctx)
+	if e != nil {
+		return Video{}, nil, e
+	}
+	defer tx.Rollback(ctx)
+	v, e := scanVideo(tx.QueryRow(ctx, "SELECT "+videoColumns+" FROM videos WHERE id=$1 FOR UPDATE", id))
+	if e != nil {
+		return v, nil, e
+	}
+	create, e := enqueueDecision(v.Status, retry)
+	if e != nil {
+		return v, nil, e
+	}
+	if !create {
+		return v, nil, nil
+	}
+	j := Job{uuid.NewString(), id}
+	// Never silently override a live job when the video/job state is inconsistent.
+	_, e = tx.Exec(ctx, `INSERT INTO processing_jobs(id,video_id,status) VALUES($1,$2,'queued')`, j.ID, j.VideoID)
+	if e != nil {
+		return v, nil, e
+	}
+	_, e = tx.Exec(ctx, `UPDATE videos SET status='queued',processing_error=NULL,updated_at=now() WHERE id=$1`, id)
+	if e != nil {
+		return v, nil, e
+	}
+	if e = tx.Commit(ctx); e != nil {
+		return v, nil, e
+	}
+	v.Status = "queued"
+	v.ProcessingError = nil
+	return v, &j, nil
 }
 
 func (s *Store) Ping(ctx context.Context) error {

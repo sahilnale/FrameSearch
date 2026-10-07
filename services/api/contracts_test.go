@@ -39,6 +39,24 @@ func TestUploadValidation(t *testing.T) {
 }
 func ptr[T any](x T) *T { return &x }
 
+func TestLegalEnqueueTransitions(t *testing.T) {
+	for _, status := range []string{"awaiting_upload", "queued", "processing", "ready", "failed", "invalid"} {
+		for _, retry := range []bool{false, true} {
+			name := status + "/complete"
+			if retry {
+				name = status + "/retry"
+			}
+			t.Run(name, func(t *testing.T) {
+				create, e := enqueueDecision(status, retry)
+				wantCreate := (!retry && status == "awaiting_upload") || (retry && status == "failed")
+				wantError := (retry && status != "failed") || (!retry && (status == "failed" || status == "invalid"))
+				if create != wantCreate || (e != nil) != wantError {
+					t.Fatalf("create=%v error=%v", create, e)
+				}
+			})
+		}
+	}
+}
 func unitVector() []float64 { x := make([]float64, 512); x[0] = 1; return x }
 func TestEmbeddingValidation(t *testing.T) {
 	for _, tc := range []struct {
