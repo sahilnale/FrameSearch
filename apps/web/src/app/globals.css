@@ -459,6 +459,9 @@ h1 {
   background: transparent;
   border-style: dashed;
 }
+.search-notice {
+  margin-top: 28px;
+}
 .search-start > svg {
   box-sizing: content-box;
   padding: 15px;
