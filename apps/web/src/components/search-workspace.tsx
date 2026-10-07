@@ -87,80 +87,88 @@ export function SearchExperience({
 
   return (
     <div className="page-content search-page">
-      <section className="intro">
-        <div>
-          <div className="workspace-label">Visual search</div>
-          <h1>Search your videos</h1>
-          <p>
-            Describe what you’re looking for and jump to the matching frame.
-          </p>
-        </div>
-      </section>
-      <form
-        className="search-form"
-        role="search"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void search(query);
-        }}
-      >
-        <div className="search-field">
-          <Search size={21} strokeWidth={1.5} />
-          <input
-            ref={input}
-            aria-label="Describe a visual moment"
-            placeholder="Describe a scene, object, or activity…"
-            value={query}
-            maxLength={500}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          <button type="submit" className="button" disabled={!query.trim()}>
-            {loading ? <span className="spinner" /> : null}
-            <span>Search</span>
-            <ArrowRight size={16} />
-          </button>
-        </div>
-        <div className="search-options">
-          <label className="scope-select">
-            <SlidersHorizontal size={13} />
-            <select
-              aria-label="Search videos"
-              value={scope}
-              onChange={(event) => {
-                const value = event.target.value;
-                setScope(value);
-                if (submitted) void search(submitted, value);
-              }}
-            >
-              <option value="">All videos</option>
-              {initialVideo &&
-                !ready.some((video) => video.id === initialVideo) && (
-                  <option value={initialVideo}>Selected video</option>
-                )}
-              {ready.map((video) => (
-                <option key={video.id} value={video.id}>
-                  {video.filename}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="search-hint">
-            <span className="status-dot" />
-            {libraryError
-              ? "Library unavailable"
-              : libraryLoading
-                ? "Loading your library"
-                : `${ready.length} ${ready.length === 1 ? "video" : "videos"} ready to search`}
-          </div>
-          <details className="search-help">
-            <summary>Search tips</summary>
+      <div className={`search-studio ${submitted ? "has-results" : ""}`}>
+        <section className="intro">
+          <div>
+            <div className="workspace-label">Visual search</div>
+            <h1>
+              Search your <span>videos.</span>
+            </h1>
             <p>
-              Describe visible objects, actions, or settings. Search matches
-              visual content; speech and dialogue aren’t indexed.
+              Describe what you’re looking for and jump to the matching frame.
             </p>
-          </details>
-        </div>
-      </form>
+          </div>
+        </section>
+        <form
+          className="search-form"
+          role="search"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void search(query);
+          }}
+        >
+          <label className="query-label" htmlFor="visual-query">
+            What are you looking for?
+          </label>
+          <div className="search-field">
+            <Search size={21} strokeWidth={1.5} />
+            <input
+              id="visual-query"
+              ref={input}
+              aria-label="Describe a visual moment"
+              placeholder="Describe a scene, object, or activity…"
+              value={query}
+              maxLength={500}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <button type="submit" className="button" disabled={!query.trim()}>
+              {loading ? <span className="spinner" /> : null}
+              <span>Search</span>
+              <ArrowRight size={16} />
+            </button>
+          </div>
+          <div className="search-options">
+            <label className="scope-select">
+              <SlidersHorizontal size={13} />
+              <select
+                aria-label="Search videos"
+                value={scope}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setScope(value);
+                  if (submitted) void search(submitted, value);
+                }}
+              >
+                <option value="">All videos</option>
+                {initialVideo &&
+                  !ready.some((video) => video.id === initialVideo) && (
+                    <option value={initialVideo}>Selected video</option>
+                  )}
+                {ready.map((video) => (
+                  <option key={video.id} value={video.id}>
+                    {video.filename}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="search-hint">
+              <span className="status-dot" />
+              {libraryError
+                ? "Library unavailable"
+                : libraryLoading
+                  ? "Loading your library"
+                  : `${ready.length} ${ready.length === 1 ? "video" : "videos"} ready to search`}
+            </div>
+            <details className="search-help">
+              <summary>Search tips</summary>
+              <p>
+                Describe visible objects, actions, or settings. Search matches
+                visual content; speech and dialogue aren’t indexed.
+              </p>
+            </details>
+          </div>
+        </form>
+      </div>
       {submitted ? (
         <section
           className="results-section"
@@ -266,7 +274,7 @@ export function SearchExperience({
             <div>
               <h2>Your footage</h2>
               <p className="result-query">
-                Choose a video, or search the whole library above.
+                Select a video to narrow your search.
               </p>
             </div>
             <Link href="/library" className="text-button">
