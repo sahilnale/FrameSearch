@@ -21,7 +21,8 @@ These design decisions combine that preference with the patterns below.
 - [Carbon empty states](https://www.carbondesignsystem.com/building-blocks/core/patterns/empty-states)
   calls for context-appropriate guidance and limited content. Each state has one useful
   next step: upload into an empty library, check existing indexing work, reload an
-  unavailable library, or enter a description when videos are ready.
+  unavailable library, or choose existing footage and enter a description when
+  videos are ready.
 - [WCAG text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)
   requires at least 4.5:1 for ordinary text. The selected body, muted text, primary
   action, navigation, placeholder and status-chip pairs were calculated above that
@@ -36,7 +37,7 @@ contains Search and Library, with one upload entry point per view.
 
 Use a compact top navigation instead of a permanent sidebar. Keep filenames and
 result timestamps readable; supporting labels are generally 12–14px and the search
-input is 16px. Mobile layouts rearrange controls without hiding the two destinations.
+input is 18px on desktop and 16px on phones. Mobile layouts rearrange controls without hiding the two destinations.
 The player retains native controls, focus restoration and signed-link recovery.
 
 Use direct labels: Search, Library, Upload a video, Play video, Similarity. Display
@@ -44,11 +45,31 @@ actual raw cosine values to three decimals, with the definition in their tooltip
 Remove promotional slogans, decorative frame art, duplicate counts and test-clip
 query suggestions. Never fabricate previews or infer a video's contents from its name.
 
+## Footage and visual character
+
+The light palette stays, with a solid blue scan mark, underlined navigation,
+stronger Manrope headings, tighter corner radii and a small visual-search label.
+These details make the workspace recognizable without adding promotional panels.
+
+When ready videos exist, the start screen shows up to three actual paused video
+previews instead of an empty search placeholder. Each requests its signed original
+through the existing playback API, uses metadata preload and seeks to 0.1 seconds
+to decode a frame. Browser preload is a hint; transferred bytes depend on the
+browser and storage server. Nothing autoplays, and requests abort when the shelf
+unmounts. Ticket/media failures or a 15-second media timeout show an honest fallback
+without disabling source selection. Selecting a source preserves the query and
+focuses the input; selecting it again returns to all videos. No extra backend
+endpoint, stored poster or filename-based imagery is introduced.
+
 ## Checkpoints
 
 1. `38e67f2`: general copy and removal of fixture-specific suggestions/artwork.
 2. `cd01879`: light palette, compact navigation, responsive layout, centered player.
 3. `5554f89`: explicit playback actions and plain similarity labels.
 4. `6999b5d`: separate loading, unavailable, indexing and first-upload guidance.
+5. `6a39b58`: stronger typography, scan mark and navigation identity.
+6. `ca84d65`: reusable signed-video preview and failure-handling tests.
+7. `b6db24e`: footage shelf and query-preserving source selection.
+8. `c7f0b43`: keep the library action on one line on phones.
 
 See [VERIFICATION.md](VERIFICATION.md) for the executed checks and their scope.
