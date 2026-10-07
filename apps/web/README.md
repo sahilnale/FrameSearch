@@ -15,6 +15,12 @@ previews from signed playback URLs. Select one to scope the query; select it aga
 to search the whole library. Preview failures do not prevent searching. No preview
 autoplays, and the shared API/schema are unchanged.
 
+In Library, click a ready video's filename or play tile to watch its original
+from the beginning. Search remains a separate action. The existing playback API
+only issues links for ready videos, so queued/indexing rows explain when playback
+becomes available. The shared player retains native controls, signed-link recovery
+and focus restoration; library playback shows duration instead of match controls.
+
 ```sh
 cd apps/web
 npm ci
