@@ -13,7 +13,7 @@ const workspace = vi.hoisted(() => ({
 vi.mock("@/components/workspace", () => ({ useWorkspace: () => workspace }));
 vi.mock("@/components/upload-panel", () => ({ UploadPanel: () => null }));
 vi.mock("@/lib/api", () => ({
-  api: { retry: vi.fn(), complete: vi.fn() },
+  api: { retry: vi.fn(), complete: vi.fn(), playback: vi.fn() },
   errorMessage: (error: Error) => error.message,
 }));
 
@@ -22,7 +22,21 @@ beforeEach(() => {
   workspace.videos = [];
   workspace.error = null;
   workspace.loading = false;
+  vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+  vi.mocked(api.playback).mockResolvedValue({
+    url: "http://storage/signed-library-video",
+    expires_in_seconds: 900,
+  });
 });
+
+const uploaded: Video = {
+  id: "uploaded-id",
+  filename: "uploaded.mp4",
+  status: "ready",
+  duration_seconds: 18,
+  processing_error: null,
+  created_at: "2026-10-07T00:00:00Z",
+};
 
 it("shows an empty library as zero videos, without a loading indicator or error", () => {
   render(<LibraryPage />);
@@ -67,4 +81,63 @@ it("retries the existing failed video ID and refreshes its status", async () => 
   fireEvent.click(screen.getByRole("button", { name: "Retry indexing" }));
   await waitFor(() => expect(workspace.refresh).toHaveBeenCalledTimes(1));
   expect(api.retry).toHaveBeenCalledExactlyOnceWith(workspace.videos[0].id);
+});
+
+it("opens the original from its library row at zero and restores focus on close", async () => {
+  workspace.videos = [uploaded];
+  render(<LibraryPage />);
+  const trigger = screen.getByRole("button", { name: "Play uploaded.mp4" });
+  trigger.focus();
+  fireEvent.click(trigger);
+  const player = (await screen.findByLabelText(
+    "uploaded.mp4 video player",
+  )) as HTMLVideoElement;
+  expect(api.playback).toHaveBeenCalledWith(
+    "uploaded-id",
+    expect.any(AbortSignal),
+  );
+  expect(player.getAttribute("src")).toBe(
+    "http://storage/signed-library-video",
+  );
+  Object.defineProperty(player, "duration", { value: 18 });
+  fireEvent.loadedMetadata(player);
+  expect(player.currentTime).toBe(0);
+  expect(player.play).toHaveBeenCalledOnce();
+  expect(screen.queryByText("Matching frame")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Close playback" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(trigger);
+  expect(
+    screen
+      .getByRole("link", { name: "Search uploaded.mp4" })
+      .getAttribute("href"),
+  ).toBe("/?video=uploaded-id");
+});
+
+it("keeps indexing videos unplayable until the shared API permits playback", () => {
+  workspace.videos = [
+    { ...uploaded, id: "queued", status: "queued" },
+    { ...uploaded, id: "processing", status: "processing" },
+  ];
+  render(<LibraryPage />);
+  expect(
+    screen.queryByRole("button", { name: "Play uploaded.mp4" }),
+  ).toBeNull();
+  expect(
+    screen.getAllByText(/Playback is available when indexing finishes/),
+  ).toHaveLength(2);
+  expect(api.playback).not.toHaveBeenCalled();
+});
+
+it("shows a playback error in the library player and can fetch a fresh link", async () => {
+  workspace.videos = [uploaded];
+  vi.mocked(api.playback).mockRejectedValueOnce(
+    new Error("Storage unavailable"),
+  );
+  render(<LibraryPage />);
+  fireEvent.click(screen.getByRole("button", { name: "Play uploaded.mp4" }));
+  await screen.findByText("Storage unavailable");
+  fireEvent.click(screen.getByRole("button", { name: "Refresh playback" }));
+  await screen.findByLabelText("uploaded.mp4 video player");
+  expect(api.playback).toHaveBeenCalledTimes(2);
 });

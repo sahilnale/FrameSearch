@@ -7,6 +7,7 @@ import {
   Check,
   Clock3,
   FileVideo,
+  Play,
   RotateCcw,
   Search,
   TriangleAlert,
@@ -25,13 +26,19 @@ const labels: Record<VideoStatus, string> = {
 };
 const hints: Record<VideoStatus, string> = {
   awaiting_upload: "File transfer is not complete.",
-  queued: "Waiting for indexing to start.",
-  processing: "Preparing frames for search.",
-  ready: "Available in search.",
+  queued: "Waiting for indexing. Playback is available when indexing finishes.",
+  processing: "Preparing frames. Playback is available when indexing finishes.",
+  ready: "Click to watch video.",
   failed: "This video could not be indexed.",
 };
 
-export function VideoRow({ video }: { video: Video }) {
+export function VideoRow({
+  video,
+  onPlay,
+}: {
+  video: Video;
+  onPlay: () => void;
+}) {
   const { refresh } = useWorkspace();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,19 +69,45 @@ export function VideoRow({ video }: { video: Video }) {
   return (
     <article className={`library-video ${video.status}`}>
       <div className="video-row">
-        <div className="video-symbol">
-          <FileVideo size={25} strokeWidth={1.1} />
-          <span>MP4</span>
-        </div>
-        <div className="video-info">
-          <h3 title={video.filename}>{video.filename}</h3>
-          <p>
-            {video.duration_seconds !== null
-              ? `${formatTime(video.duration_seconds * 1000)} · `
-              : ""}
-            {hints[video.status]}
-          </p>
-        </div>
+        {video.status === "ready" ? (
+          <button
+            className="video-open"
+            aria-label={`Play ${video.filename}`}
+            onClick={onPlay}
+          >
+            <span className="video-symbol video-symbol-play" aria-hidden="true">
+              <Play size={23} strokeWidth={1.5} />
+              <span>Play</span>
+            </span>
+            <span className="video-info">
+              <span className="video-filename" title={video.filename}>
+                {video.filename}
+              </span>
+              <span className="video-description">
+                {video.duration_seconds !== null
+                  ? `${formatTime(video.duration_seconds * 1000)} · `
+                  : ""}
+                {hints[video.status]}
+              </span>
+            </span>
+          </button>
+        ) : (
+          <>
+            <div className="video-symbol">
+              <FileVideo size={25} strokeWidth={1.1} />
+              <span>MP4</span>
+            </div>
+            <div className="video-info">
+              <h3 title={video.filename}>{video.filename}</h3>
+              <p>
+                {video.duration_seconds !== null
+                  ? `${formatTime(video.duration_seconds * 1000)} · `
+                  : ""}
+                {hints[video.status]}
+              </p>
+            </div>
+          </>
+        )}
         <span className={`status-badge ${video.status}`}>
           {video.status === "processing" ? (
             <span className="spinner" />
