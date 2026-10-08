@@ -3,7 +3,8 @@
 Branch: `codex/processor-core`. Service lifecycle checkpoint: `0927c2f`.
 Full regression checkpoint: `02a95cc`; fixture generator checkpoint: `4f5738f`.
 The original regression excludes the Go backend. A separate actual public API
-queue smoke is recorded below. The frontend/browser are not verified.
+queue smoke is recorded below. Frontend/browser happy-path verification is
+recorded separately in `../../apps/web/VERIFICATION.md`.
 
 ## Executed complete suite
 
@@ -198,12 +199,14 @@ without `--api` that opt-in case is deliberately skipped.
 
 ## Remaining scope
 
-- Shared Compose startup with its default public addresses and browser CORS/
-  playback remain unverified. The isolated public API happy path above passes.
+- Full shared Compose startup with persistent volumes/model cache remains
+  unverified. Separate actual public API and browser happy paths pass.
 - Actual public corrupt-upload → failed → retry → ready and stale-crash recovery
   remain additional integration checks; their underlying policies/DB behavior
   have focused coverage, but this happy-path smoke does not claim those flows.
-- Frontend work remains deferred until backend integration is ready.
+- Frontend upload/search/playback now works in a genuine live demo, including
+  CORS and native timestamp seeking. The web report records 12 UI tests, built
+  production container, three browser uploads, 18 frames and committed offset 3.
 - Broader relevance remains unmeasured. The real-footage check above records
   two first-frame misses; no model or ranking changes have been made to hide them.
 - Crash recovery relies on stopping the sole processor and using Go's queued/
