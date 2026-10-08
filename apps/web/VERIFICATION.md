@@ -1,5 +1,34 @@
 # Frontend verification — 2026-10-07
 
+## Footage workspace refinement
+
+Feature checkpoints: typography `6a39b58`, preview component `ca84d65`, search
+integration `b6db24e`, mobile link `c7f0b43`. All changes are under `apps/web`.
+
+- **21 tests passed**, five files, 1.30s. New coverage checks signed-preview
+  requests, paused metadata seeking, ticket/media failure fallbacks, bounded media
+  loading, abort on unmount, the three-preview limit, source toggling and preserving
+  the typed query. Lint, TypeScript and formatting checks passed. The final Docker
+  production build passed, including Next.js TypeScript compilation.
+- All three real preview videos decoded at **0.1s**, duration **18s**, readyState
+  **4**, paused, no media error. Selecting the train card preserved the query,
+  selected its actual UUID and focused the input. Selecting again returned to all
+  videos.
+- Real library-wide search returned **12** frames; the train filter returned
+  **six**, all with loaded thumbnails. Native playback returned to the **00:12**
+  match at **12.213259s**, readyState **4**, no media error. Escape closed the
+  dialog and restored focus to the selected result.
+- The search starting screen fits **320, 390 and 1440px** without horizontal
+  overflow. A wrapping library action found on phones was corrected separately.
+
+The search/playback observations used the same code before the final mobile
+whitespace adjustment. Final starting-screen layout and paused previews were
+checked against the final build. This remains an in-app Chromium check; the
+existing Compose/recovery and broader browser scope below is unchanged.
+
+Raw observations: `evaluations/footage-workspace-smoke.json`. Local screenshots
+are ignored under `test-results/`.
+
 ## Light interface redesign
 
 Current feature commit: `6999b5d`. Focused checkpoints and research are in

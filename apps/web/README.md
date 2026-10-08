@@ -10,6 +10,11 @@ guidance based on actual library status. There are no fixture-specific query
 suggestions or promotional hero panels. Research and design decisions are in
 [DESIGN.md](DESIGN.md).
 
+The search start screen shows up to three ready videos using genuine paused
+previews from signed playback URLs. Select one to scope the query; select it again
+to search the whole library. Preview failures do not prevent searching. No preview
+autoplays, and the shared API/schema are unchanged.
+
 ```sh
 cd apps/web
 npm ci
