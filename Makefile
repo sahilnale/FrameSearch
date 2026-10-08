@@ -1,6 +1,7 @@
 DOCKER ?= docker
 GO ?= go
 PYTHON ?= python3
+UV ?= uv
 API_URL ?= http://localhost:8080
 SMOKE_ARGS ?=
 ENV_FILE := $(if $(wildcard .env),.env,.env.example)
@@ -22,7 +23,7 @@ logs:
 
 test:
 	cd services/api && $(GO) test ./...
-	@if test -d services/processor/tests; then $(PYTHON) -m pytest services/processor/tests; else echo 'Processor tests are not present yet (Developer 2).'; fi
+	cd services/processor && $(UV) run --frozen pytest
 
 test-infra:
 	$(COMPOSE) --profile tests run --rm api-tests
