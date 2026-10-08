@@ -8,10 +8,10 @@ import argparse
 import json
 import math
 import os
-from pathlib import Path
 import shlex
 import subprocess
 import time
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlsplit, urlunsplit
 from urllib.request import Request, urlopen

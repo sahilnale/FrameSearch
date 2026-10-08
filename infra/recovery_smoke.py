@@ -105,13 +105,15 @@ def stale_check(base, timeout):
     try:
         if (
             sql(
-                f"SELECT count(*) FROM processing_jobs WHERE video_id='{video_id}' AND status='processing';"
+                "SELECT count(*) FROM processing_jobs "
+                f"WHERE video_id='{video_id}' AND status='processing';"
             )
             != "1"
         ):
             raise RuntimeError("Worker stop did not leave the expected claimed job")
         sql(
-            f"UPDATE processing_jobs SET updated_at=now()-interval '16 minutes' WHERE video_id='{video_id}' AND status='processing';"
+            "UPDATE processing_jobs SET updated_at=now()-interval '16 minutes' "
+            f"WHERE video_id='{video_id}' AND status='processing';"
         )
         compose(
             "run",
