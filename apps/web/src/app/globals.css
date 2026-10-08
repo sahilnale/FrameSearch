@@ -515,6 +515,9 @@ h1 {
   margin-top: 24px;
   margin-bottom: 24px;
 }
+.footage-section .text-button {
+  white-space: nowrap;
+}
 .footage-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
