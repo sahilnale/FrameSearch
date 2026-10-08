@@ -10,23 +10,22 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const { videos, online } = useWorkspace();
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      <header className="app-header">
         <Link className="brand" href="/" aria-label="FrameSearch home">
           <span className="brand-mark">
-            <Scan size={25} />
+            <Scan size={22} />
           </span>
           <span>
             Frame<span className="brand-light">Search</span>
           </span>
         </Link>
-        <div className="workspace-label">Workspace</div>
         <nav aria-label="Main navigation">
           <Link
             className={`nav-item ${path === "/" ? "active" : ""}`}
             href="/"
             aria-current={path === "/" ? "page" : undefined}
           >
-            <Search size={18} />
+            <Search size={17} />
             <span>Search</span>
           </Link>
           <Link
@@ -34,15 +33,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
             href="/library"
             aria-current={path === "/library" ? "page" : undefined}
           >
-            <Film size={18} />
+            <Film size={17} />
             <span>Library</span>
             {videos.length > 0 && (
               <span className="nav-count">{videos.length}</span>
             )}
           </Link>
         </nav>
-        <div className="sidebar-bottom">
-          <div className="local-status">
+        <div className="header-actions">
+          <div className="local-status" role="status">
             <span
               className={`status-dot ${online === true ? "online" : online === false ? "offline" : ""}`}
             />
@@ -54,23 +53,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   : "Connecting…"}
             </span>
           </div>
-          <span className="local-caption">Local workspace</span>
-        </div>
-      </aside>
-      <div className="main-shell">
-        <header className="topbar">
-          <div className="breadcrumb">
-            Workspace <span>/</span>
-            <strong>{path === "/library" ? "Library" : "Search"}</strong>
-          </div>
           {path !== "/library" && (
-            <Link href="/library?upload=1" className="button button-small">
-              <Plus size={16} /> Upload video
+            <Link
+              href="/library?upload=1"
+              className="button button-small"
+              aria-label="Upload video"
+            >
+              <Plus size={17} />
+              <span>Upload video</span>
             </Link>
           )}
-        </header>
-        <main id="main-content">{children}</main>
-      </div>
+        </div>
+      </header>
+      <main id="main-content">{children}</main>
     </div>
   );
 }
