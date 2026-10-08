@@ -17,7 +17,12 @@ def main():
     parser.add_argument(
         "--indexing", action="store_true", help="also run real MinIO/CLIP/PostgreSQL ingestion"
     )
+    parser.add_argument(
+        "--full", action="store_true", help="run every processor test; requires --indexing"
+    )
     arguments = parser.parse_args()
+    if arguments.full and not arguments.indexing:
+        parser.error("--full requires --indexing to enable every live processor dependency")
     cache = PROCESSOR / ".cache/openclip"
     if arguments.indexing and not cache.is_dir():
         parser.error("cache real OpenCLIP weights before enabling --indexing")
@@ -217,6 +222,8 @@ def main():
                 "/app/.venv/bin/python tests/wait_for_minio.py && "
             )
             selection += " tests/test_worker_integration.py tests/test_service_integration.py"
+        if arguments.full:
+            selection = ""
         command.extend(
             [
                 TEST_IMAGE,

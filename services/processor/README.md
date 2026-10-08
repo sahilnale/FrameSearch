@@ -755,6 +755,18 @@ and semantic evaluation still need their own checkpoint.
 
 ## Integration notes for Developer 1
 
+The complete processor/AI suite can run without the Go service or frontend:
+
+```sh
+python services/processor/tests/run_kafka_tests.py --indexing --full
+# With the current successfully built images:
+python services/processor/tests/run_kafka_tests.py --indexing --full --skip-build
+```
+
+All live dependency flags are enabled, including real media and model checks.
+The complete suite passed **506 tests with zero skips** (47.94 seconds). See
+`VERIFICATION.md` for the tested behavior and remaining integration boundaries.
+
 The frozen model version and all shared contracts are unchanged. No Go, schema,
 infrastructure, shared docs, or environment files are modified by this work.
 The internal HTTP server listens on `0.0.0.0:8000` within Compose and starts the

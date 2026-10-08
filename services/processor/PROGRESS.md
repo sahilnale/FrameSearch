@@ -29,7 +29,8 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | Pinned Kafka client and shared configuration | Implemented, verified, pushed | Commit `8e029ad`; 34 Kafka configuration checks; 62 focused configuration checks pass; native consumer constructs/closes |
 | Kafka consumer with manual offset commits | Implemented, verified, pushed | Commit `ed6e68e`; 32 adapter checks and three real Kafka 3.9 redelivery/offset/topic checks; 134 focused checks pass |
 | Serial Kafka-to-job ingestion loop | Implemented, verified, pushed | Commit `f0f3e44`; 17 loop checks and five actual Kafka-to-CLIP/MinIO/PostgreSQL checks; 156 focused checks pass |
-| Shared HTTP/worker lifecycle | Implemented, verified | 12 lifecycle checks and two actual packaged Uvicorn socket checks; 186 focused checks pass |
+| Shared HTTP/worker lifecycle | Implemented, verified, pushed | Commit `0927c2f`; 12 lifecycle checks and two actual packaged Uvicorn socket checks; 186 focused checks pass |
+| Complete processor/AI regression | Verified | 506 passed, zero skips; all live media/model/storage/database/Kafka/HTTP checks enabled |
 | Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
 
 This file is Developer 2-owned. Developer 1 maintains the root progress document.
@@ -478,6 +479,16 @@ Only successfully executed checks will be marked verified here.
   ingestion/search/playback and semantic evaluation remain unverified.
 
 ## Remaining sequence
+
+The user deferred the public Go backend integration and requested the complete
+processor/AI verification now. `run_kafka_tests.py --indexing --full --skip-build`
+passed **506 tests, zero skips** (47.94 seconds). Unit doubles are confined to test
+cases; all genuine FFmpeg/CLIP/MinIO/PostgreSQL/Kafka/packaged HTTP integration
+checks ran successfully. Disposable resources were removed. The full-mode helper
+requires `--indexing` so missing live dependencies are not silently skipped.
+Details and scope boundaries are recorded in `VERIFICATION.md`. A tiny labeled
+visual-search relevance check follows separately; structural passes do not
+establish semantic quality.
 
 1. Real backend/processor end-to-end smoke test using the shared infrastructure.
 2. Frontend upload, search, and playback, after the backend integration works.
