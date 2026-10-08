@@ -6,6 +6,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from psycopg import ProgrammingError
+from psycopg.conninfo import conninfo_to_dict
+
 MODEL_NAME = "ViT-B-32"
 MODEL_PRETRAINED = "laion2b_s34b_b79k"
 MODEL_VERSION = f"{MODEL_NAME}:{MODEL_PRETRAINED}"
@@ -84,3 +87,27 @@ class StorageSettings:
             secret_key=os.getenv("S3_SECRET_KEY", ""),
             bucket=os.getenv("S3_BUCKET", "framesearch"),
         )
+
+
+@dataclass(frozen=True)
+class DatabaseSettings:
+    url: str = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.url, str) or not self.url.startswith(
+            ("postgres://", "postgresql://")
+        ):
+            raise ValueError("DATABASE_URL must be a PostgreSQL URL")
+        try:
+            parameters = conninfo_to_dict(self.url)
+        except ProgrammingError:
+            # libpq's parse errors can include the original URL and its credentials.
+            raise ValueError("DATABASE_URL must be a valid PostgreSQL URL") from None
+        if not parameters.get("dbname") or not (
+            parameters.get("host") or parameters.get("hostaddr")
+        ):
+            raise ValueError("DATABASE_URL must specify a host and database")
+
+    @classmethod
+    def from_env(cls) -> "DatabaseSettings":
+        return cls(url=os.getenv("DATABASE_URL", ""))

@@ -5,7 +5,8 @@ Synced latest main `1b1185d` through a merge; the database schema is unchanged.
 Fetched main again for the storage checkpoint; it remains at `1b1185d`.
 Remote main was reorganized into feature commits; the processor work was carried
 onto this fresh branch without modifying or discarding the earlier branch.
-Each feature gets a separate commit after its focused checks.
+Each commit covers one small behavior with its focused checks. Database work is
+split into connection/configuration, claims, frame upserts, and terminal states.
 
 | Feature | Status | Verification |
 | --- | --- | --- |
@@ -14,8 +15,11 @@ Each feature gets a separate commit after its focused checks.
 | Processor container packaging | Implemented, verified, pushed | Commit `aa6df84`; Linux ARM64 build and live real HTTP check pass |
 | FFprobe upload validation | Implemented, verified, pushed | Commit `32f2652`; 35 focused unit tests and 7 real-media checks pass |
 | Timestamped FFmpeg sampling | Implemented, verified, pushed | Commit `ba46b36`; 121 passed, including real decoding and all real-model checks |
-| MinIO source download and thumbnail upload | Implemented, verified | Full suite: 175 passed, no skips, including actual MinIO and real CPU inference |
-| PostgreSQL job claims, frame persistence and terminal states | Planned | Not run |
+| MinIO source download and thumbnail upload | Implemented, verified, pushed | Commit `3407330`; 175 passed, no skips, including actual MinIO and real CPU inference |
+| PostgreSQL connection/configuration and schema check | Implemented, verified | 22 focused checks pass, including seven actual PostgreSQL checks and fifteen configuration checks |
+| Atomic PostgreSQL job claiming | Planned | Not run |
+| Idempotent frame upserts | Planned | Not run |
+| Transactional ready/failed states | Planned | Not run |
 | Kafka consumption, bounded retries and recovery | Planned | Not run |
 | Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
 
@@ -152,12 +156,47 @@ Only successfully executed checks will be marked verified here.
 - AWS migration and actual AWS S3 transfers remain untested. Preserve object
   keys when copying data and coordinate bucket region with both signing clients.
 
+## PostgreSQL connection checkpoint
+
+- Fetched main again; it remains `1b1185d`. Read the master/Developer 2 specs and
+  existing migration. No schema changes are needed or made for this checkpoint.
+- Added pinned `psycopg[binary]==3.3.6` and its locked binary driver. Shared
+  `DATABASE_URL` is required and validated without revealing credentials.
+- Added short-lived connection contexts with commit, rollback, and close;
+  connection/statement/lock timeouts are 5 seconds / 15 seconds / 5 seconds.
+  The schema check requires the canonical tables and pgvector extension.
+- Focused configuration/core/storage regression check: **73 passed** (3.48
+  seconds), including 15 new PostgreSQL URL/credential-hiding checks.
+- Full host suite: **157 passed, 40 skipped** (7.13 seconds). Skips include
+  unavailable host media tools and opt-in real model/storage/database checks.
+- Focused tests against actual PostgreSQL 16 / pgvector 0.8.7 on Linux ARM64:
+  **22 passed, no skips** (0.24 seconds), including seven real database checks
+  and fifteen configuration checks. Verified commit, rollback, closure on errors,
+  separate connections, configured timeouts, query cancellation, missing schema,
+  actual vector SQL, and invalid credentials.
+- Built `framesearch-processor:database-connection` and its test image. The
+  packaged production module passed the canonical schema check as UID 10001,
+  without mounting application source. Tests applied the unchanged shared
+  migration to an isolated disposable instance using the official pinned
+  `pgvector/pgvector:0.8.7-pg16-bookworm` image. No ports were published.
+- The first build failed after the host disk filled up; Docker then reported
+  storage I/O errors. Cleared our disposable dependency cache; the user freed
+  disk space and approved a Docker restart. Build and live checks passed after
+  recovery. The real model checkpoint remains intact.
+- Confirmed the disposable test server and network were removed. No shared
+  migration or application rows were changed. Ruff checks, formatting, and
+  offline lockfile validation pass.
+- Connection logic is not wired into application readiness or a worker yet.
+  Atomic claims, frame writes, and terminal transitions are separate next commits.
+
 ## Remaining sequence
 
-1. Transactional PostgreSQL job claims, frame upserts, and terminal states.
-2. Kafka consumption, bounded retries, offset handling, and service lifecycle.
-3. Real backend/processor end-to-end smoke test using the shared infrastructure.
-4. Frontend upload, search, and playback, after the backend integration works.
+1. Atomic job claiming, with concurrency and duplicate-event tests.
+2. Idempotent frame upserts, with actual pgvector persistence tests.
+3. Ready/failed job and video transitions in the same transaction.
+4. Kafka consumption, bounded retries, offset handling, and service lifecycle.
+5. Real backend/processor end-to-end smoke test using the shared infrastructure.
+6. Frontend upload, search, and playback, after the backend integration works.
 
 Each feature remains a separate tested commit and is pushed at its checkpoint.
 Full end-to-end functionality is not yet implemented.

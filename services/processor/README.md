@@ -4,7 +4,8 @@ Developer 2's processor implementation, following master specification section 1
 This checkpoint contains the real CPU OpenCLIP embedding core, internal text
 HTTP service, FFprobe upload validation, timestamped FFmpeg frame extraction,
 and private source/thumbnail transfers through MinIO's S3 API. Kafka consumption
-and database transitions are subsequent features. These components are not yet
+and database transitions are subsequent features. The PostgreSQL connection
+layer is verified against the shared schema. These components are not yet
 connected to an ingestion worker.
 
 ## Install and test the embedding core
@@ -325,6 +326,58 @@ and credentials, and copying existing objects while preserving keys. The current
 Go/Python clients both sign for `us-east-1`; use that AWS region initially or
 coordinate configurable region support in both services. AWS S3 has not been
 tested by this checkpoint.
+
+## PostgreSQL connection checkpoint
+
+The processor uses pinned `psycopg[binary]==3.3.6`. `DatabaseSettings.from_env()`
+requires the shared `DATABASE_URL` with an explicit host and database name.
+Credentials are hidden from settings repr and URL validation errors. The URL's
+TLS settings are passed to libpq, including the local `sslmode=disable` example.
+
+`framesearch_processor.database.Database.connection()` opens one connection per
+operation, commits its transaction on success, rolls back on exceptions, and
+always closes it. Connections are not shared between threads. It enforces a
+five-second connection timeout, a 15-second statement timeout, and a five-second
+lock timeout. The application name is `framesearch-processor`.
+
+`Database.check_schema()` checks connectivity, the three canonical `public`
+tables, and the installed `vector` extension. It does not run or modify the
+shared migration. Database failures raise `DatabaseError`; this checkpoint does
+not yet wire that check into HTTP readiness or implement job/frame writes.
+
+```python
+from framesearch_processor.database import Database
+from framesearch_processor.settings import DatabaseSettings
+
+database = Database(DatabaseSettings.from_env())
+database.check_schema()
+```
+
+Local verification: **157 passed, 40 skipped** (7.13 seconds). Focused Linux
+ARM64 checks: **22 passed, no skips** (0.24 seconds), including fifteen new
+configuration checks and seven real PostgreSQL checks. The actual production
+image also passed its schema check as UID 10001. Tests used the existing shared
+migration in a disposable PostgreSQL 16 / pgvector 0.8.7 instance, on an internal
+Docker network with no published ports. Test resources were cleaned up.
+
+To run the seven live checks with a disposable local PostgreSQL server with
+pgvector is available, apply `db/migrations/001_initial.sql` to that test database,
+then run from `services/processor`:
+
+```sh
+# Point this variable only at a disposable local test database.
+export TEST_DATABASE_URL='postgres://test_user:test_password@localhost:5432/framesearch_test?sslmode=disable'
+FRAMESEARCH_DATABASE_TEST=1 uv run --frozen pytest -q tests/test_database.py
+```
+
+The test role needs CREATE DATABASE privileges for the missing-migration check.
+Tests create and remove their own uniquely named table and empty database, and
+check connection closure, successful commit, rollback, timeout handling, schema
+availability, actual vector SQL, and invalid credentials. They do not alter
+application rows. These checks are separate from full indexing or Go integration.
+
+Database work is split into individual checkpoints: connection/configuration,
+atomic job claiming, idempotent frame upserts, and ready/failed transactions.
 
 ## Integration notes for Developer 1
 

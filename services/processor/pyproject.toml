@@ -11,6 +11,7 @@ dependencies = [
     "torchvision==0.25.0",
     "pillow==12.1.1",
     "boto3==1.43.109",
+    "psycopg[binary]==3.3.6",
 ]
 
 [dependency-groups]
@@ -35,6 +36,7 @@ pythonpath = ["."]
 markers = [
     "real_model: loads the real checkpoint; enable with FRAMESEARCH_REAL_MODEL_TEST=1",
     "minio: exercises a live MinIO instance; enable with FRAMESEARCH_MINIO_TEST=1",
+    "database: uses disposable PostgreSQL; enable with FRAMESEARCH_DATABASE_TEST=1",
 ]
 
 [tool.ruff]
