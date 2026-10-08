@@ -1,0 +1,18 @@
+{
+  "dataset": "framesearch-generated-shapes-v1",
+  "origin": "Original generated graphics; no third-party media or text drawn into the clips.",
+  "duration_seconds": 6.2,
+  "fps": 10,
+  "clips": [
+    {"id": "red-circle", "filename": "red-circle.mp4", "shape": "circle", "color": "red"},
+    {"id": "blue-square", "filename": "blue-square.mp4", "shape": "square", "color": "blue"},
+    {"id": "green-triangle", "filename": "green-triangle.mp4", "shape": "triangle", "color": "green"}
+  ],
+  "queries": [
+    {"text": "a red circle on a white background", "expected_clip": "red-circle"},
+    {"text": "a round red shape", "expected_clip": "red-circle"},
+    {"text": "a blue square on a white background", "expected_clip": "blue-square"},
+    {"text": "a green triangle on a white background", "expected_clip": "green-triangle"},
+    {"text": "a square blue shape", "expected_clip": "blue-square"}
+  ]
+}
