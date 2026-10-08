@@ -1,5 +1,36 @@
 # Frontend verification — 2026-10-07
 
+## Direct library playback
+
+Shared-player checkpoint: `b6e4350`. Library integration: `431d015`. All changes
+are under `apps/web`; the API and schema were not changed.
+
+- **26 tests passed**, five files, 1.32s. New cases cover whole-video playback at
+  zero, preserving a rewound zero-second playhead on URL refresh, library open/close
+  and focus restoration, readiness restrictions, and retrying a failed playback
+  request. Lint, TypeScript, formatting and production Docker build passed.
+- Clicked all three existing uploaded videos in the real production Library.
+  Each initially displayed **00:00**, decoded its own original with native controls,
+  duration **18s**, readyState **4**, playing, no media error. Later observations
+  captured **8.888384s**, **0.100806s** and **0.265583s** respectively; these are
+  advancing playback times, not initial seek targets. Library playback displays
+  duration and omits search-match controls.
+- Escape closed the player and restored focus to **Play passenger-train.mp4**.
+  Closing the other two clips restored their respective library triggers too.
+- Library rows fit **320, 390 and 1440px** without horizontal overflow. The player
+  also fit 320px (286px wide, x = 17px). Temporary viewport overrides were reset.
+- The separate library Search link selected the actual train UUID. Its real
+  search returned **six** frames; the shared player still sought to the **00:12**
+  match (observed **12.209253s**, readyState **4**, no media error).
+
+Playback becomes available after indexing finishes, per the existing ready-only
+signed playback contract. No new uploads or live failures were injected in this
+check; playback-request recovery and pending status restrictions were unit-tested.
+Broader browser and existing Compose/recovery checks remain separate.
+
+Raw observations: `evaluations/library-playback-smoke.json`. Local screenshots
+are ignored under `test-results/`.
+
 ## Footage workspace refinement
 
 Feature checkpoints: typography `6a39b58`, preview component `ca84d65`, search

@@ -40,6 +40,12 @@ result timestamps readable; supporting labels are generally 12–14px and the se
 input is 18px on desktop and 16px on phones. Mobile layouts rearrange controls without hiding the two destinations.
 The player retains native controls, focus restoration and signed-link recovery.
 
+Ready Library rows have one play target covering the file icon and filename,
+with Search as a separate link. Watching a library video starts at zero and shows
+its duration; search playback keeps its matching timestamp and return-to-frame
+control. Pending rows explain that playback becomes available after indexing,
+matching the existing ready-only signed playback contract.
+
 Use direct labels: Search, Library, Upload a video, Play video, Similarity. Display
 actual raw cosine values to three decimals, with the definition in their tooltip.
 Remove promotional slogans, decorative frame art, duplicate counts and test-clip
@@ -71,5 +77,7 @@ endpoint, stored poster or filename-based imagery is introduced.
 6. `ca84d65`: reusable signed-video preview and failure-handling tests.
 7. `b6db24e`: footage shelf and query-preserving source selection.
 8. `c7f0b43`: keep the library action on one line on phones.
+9. `b6e4350`: shared whole-video/search player with zero-playhead recovery.
+10. `431d015`: direct library playback and integration coverage.
 
 See [VERIFICATION.md](VERIFICATION.md) for the executed checks and their scope.
