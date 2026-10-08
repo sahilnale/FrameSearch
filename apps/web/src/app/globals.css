@@ -978,17 +978,20 @@ button.result-card:focus-visible .frame-play {
   align-items: center;
   gap: 22px;
   padding: 32px;
-  min-height: 154px;
-  background: linear-gradient(120deg, #edf8f1, #ffffff);
-  border: 1px dashed #99bdac;
-  border-radius: 12px;
+  min-height: 212px;
+  color: #ffffff;
+  background: linear-gradient(115deg, #142e69, #244de8);
+  border: 1px solid #244de8;
+  border-radius: 18px;
   transition:
     background 0.15s,
     border-color 0.15s;
 }
 .upload-panel.dragging {
-  background: var(--accent-soft);
-  border-color: var(--accent);
+  background: #183eaf;
+  border-color: var(--mint);
+  outline: 3px solid var(--mint);
+  outline-offset: 4px;
 }
 .upload-icon {
   display: grid;
@@ -1009,7 +1012,8 @@ button.result-card:focus-visible .frame-play {
   min-width: 160px;
 }
 .upload-copy h2 {
-  font-size: 17px;
+  color: #ffffff;
+  font-size: 25px;
   font-weight: 650;
   letter-spacing: -0.3px;
   margin: 0 0 5px;
@@ -1020,12 +1024,63 @@ button.result-card:focus-visible .frame-play {
   align-items: center;
   gap: 8px;
   margin: 0 0 6px;
-  color: var(--muted);
+  color: #dbe4ff;
   font-size: 14px;
 }
 .upload-copy > span {
-  color: var(--muted);
+  color: #dbe4ff;
   font-size: 12px;
+}
+.upload-copy > .upload-eyebrow {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--mint);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 1.4px;
+}
+.upload-panel .upload-primary {
+  padding: 10px 12px 10px 18px;
+  min-height: 50px;
+  background: var(--mint);
+  color: #153d34;
+  border: 1px solid var(--mint);
+  border-radius: 10px;
+  box-shadow: 0 4px 14px #091b4326;
+}
+.upload-panel .upload-primary:hover {
+  background: #e0f9ee;
+  border-color: #e0f9ee;
+}
+.upload-button-arrow {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-left: 8px;
+  background: #153d3410;
+  border-radius: 7px;
+}
+.upload-panel .upload-pause,
+.upload-panel .upload-clear {
+  color: #ffffff;
+  background: #ffffff12;
+  border: 1px solid #ffffff60;
+  border-radius: 10px;
+}
+.upload-panel .upload-pause:hover,
+.upload-panel .upload-clear:hover {
+  background: #ffffff26;
+}
+.upload-panel progress {
+  margin-top: 14px;
+  accent-color: var(--mint);
+}
+.upload-panel progress::-webkit-progress-value {
+  background: var(--mint);
+}
+.upload-panel progress::-moz-progress-bar {
+  background: var(--mint);
 }
 .upload-actions {
   display: flex;
@@ -1034,8 +1089,8 @@ button.result-card:focus-visible .frame-play {
 }
 .upload-error {
   flex-basis: 100%;
-  color: #963c31;
-  border-top: 1px solid #e8d6d3;
+  color: #ffffff;
+  border-top: 1px solid #ffffff50;
   padding-top: 16px;
   margin: 0;
   font-size: 14px;

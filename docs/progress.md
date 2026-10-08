@@ -109,3 +109,14 @@ missing-component statements. The latest integration state is milestone 4 above.
 - Screenshots are local review artifacts, not bundled application assets.
 - Saved on `ui-color-and-layout-refresh`, based on the separate backend
   integration branch. Pause for user review before merging either branch.
+
+### Upload page visual refinement
+
+- Added a cobalt upload panel with a mint file icon, clearer heading, and
+  dedicated choose, upload, pause, and reset button treatments.
+- Preserved the existing upload contracts, file limits, retry behavior, and
+  accessible file input and progress announcements.
+- Validation: 28 frontend tests, TypeScript, ESLint, Prettier, production build,
+  and desktop/320px browser review passed. A genuine 18-second MP4 uploaded
+  through the redesigned control and reached Ready to search; Add another video
+  restored the empty uploader. Awaiting design review before merging.

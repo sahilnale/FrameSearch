@@ -1,7 +1,16 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ArrowUpRight, Check, FileVideo, Upload, X } from "lucide-react";
+import {
+  ArrowUpRight,
+  Check,
+  FileVideo,
+  FolderOpen,
+  Pause,
+  Plus,
+  Upload,
+  X,
+} from "lucide-react";
 import { useUpload } from "./upload-provider";
 import { formatBytes } from "@/lib/upload";
 
@@ -59,12 +68,19 @@ export function UploadPanel() {
             <Upload size={25} strokeWidth={1.3} />
           </div>
           <div className="upload-copy">
-            <h2>Upload a video</h2>
+            <span className="upload-eyebrow">MAKE YOUR FOOTAGE SEARCHABLE</span>
+            <h2>Drop a video. Find every moment.</h2>
             <p>Drag an MP4 here, or choose one from your device.</p>
             <span>MP4 · Up to 100 MB · Maximum 3 minutes</span>
           </div>
-          <button onClick={() => input.current?.click()} className="button">
-            Choose video <ArrowUpRight size={17} />
+          <button
+            onClick={() => input.current?.click()}
+            className="button upload-primary"
+          >
+            <FolderOpen size={18} aria-hidden="true" /> Choose video
+            <span className="upload-button-arrow" aria-hidden="true">
+              <ArrowUpRight size={17} />
+            </span>
           </button>
         </>
       ) : (
@@ -73,6 +89,11 @@ export function UploadPanel() {
             {phase === "done" ? <Check size={25} /> : <FileVideo size={25} />}
           </div>
           <div className="upload-copy">
+            <span className="upload-eyebrow">
+              {phase === "done"
+                ? "ADDED TO YOUR LIBRARY"
+                : "YOUR NEXT SEARCHABLE VIDEO"}
+            </span>
             <h2 title={file.name}>{file.name}</h2>
             <p aria-live="polite">
               {busy && <span className="spinner" />}
@@ -92,23 +113,28 @@ export function UploadPanel() {
           </div>
           <div className="upload-actions">
             {phase === "done" ? (
-              <button className="button button-secondary" onClick={state.clear}>
-                Add another video
+              <button className="button upload-primary" onClick={state.clear}>
+                <Plus size={18} aria-hidden="true" /> Add another video
               </button>
             ) : busy ? (
               phase !== "completing" && (
-                <button className="text-button" onClick={state.cancel}>
-                  Pause
+                <button className="button upload-pause" onClick={state.cancel}>
+                  <Pause size={16} aria-hidden="true" /> Pause
                 </button>
               )
             ) : (
               <>
-                <button onClick={() => void state.start()} className="button">
+                <button
+                  onClick={() => void state.start()}
+                  className="button upload-primary"
+                >
                   {phase === "error" ? "Try upload again" : "Upload video"}
-                  <ArrowUpRight size={17} />
+                  <span className="upload-button-arrow" aria-hidden="true">
+                    <Upload size={17} />
+                  </span>
                 </button>
                 <button
-                  className="icon-button"
+                  className="icon-button upload-clear"
                   aria-label="Clear selected file"
                   onClick={state.clear}
                 >
