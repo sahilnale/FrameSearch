@@ -683,6 +683,19 @@ h1 {
   color: #fff;
   font-size: 11px;
 }
+.footage-preview-label {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 3px;
+  background: #141c2ce8;
+  color: #fff;
+  font-size: 11px;
+}
 .footage-info {
   display: flex;
   justify-content: space-between;

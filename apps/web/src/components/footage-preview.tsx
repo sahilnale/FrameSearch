@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ArrowUpRight, Check, ImageOff } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowUpRight, Check, ImageOff, Play } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Video } from "@/lib/contracts";
 import { formatTime } from "@/lib/upload";
@@ -18,6 +18,9 @@ export function FootagePreview({
   const [source, setSource] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const media = useRef<HTMLVideoElement>(null);
+  const posterTime = useRef(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -44,10 +47,33 @@ export function FootagePreview({
       aria-label={`Search ${video.filename}`}
       aria-pressed={selected}
       onClick={onSelect}
+      onMouseEnter={() => {
+        if (
+          ready &&
+          !failed &&
+          window.matchMedia(
+            "(hover: hover) and (prefers-reduced-motion: no-preference)",
+          ).matches
+        ) {
+          void media.current?.play().catch(() => {
+            // A blocked preview leaves the still frame and search action available.
+          });
+        }
+      }}
+      onMouseLeave={() => {
+        if (!ready || !media.current) return;
+        media.current.pause();
+        try {
+          media.current.currentTime = posterTime.current;
+        } catch {
+          // A media failure already has its own fallback; leaving still stops playback.
+        }
+      }}
     >
       <span className="footage-image">
         {source && !failed && (
           <video
+            ref={media}
             src={source}
             muted
             playsInline
@@ -55,14 +81,18 @@ export function FootagePreview({
             aria-hidden="true"
             tabIndex={-1}
             onLoadedMetadata={(event) => {
-              // Ask for a paused first frame; previews never autoplay.
-              const media = event.currentTarget;
-              if (Number.isFinite(media.duration) && media.duration > 0) {
-                media.currentTime = Math.min(0.1, media.duration / 2);
+              // Use actual footage from the middle of the clip as the still preview.
+              const player = event.currentTarget;
+              if (Number.isFinite(player.duration) && player.duration > 0) {
+                posterTime.current = player.duration / 2;
+                player.currentTime = posterTime.current;
               }
             }}
             onLoadedData={() => setReady(true)}
             onError={() => setFailed(true)}
+            onPlay={() => setPreviewing(true)}
+            onPause={() => setPreviewing(false)}
+            onEnded={() => setPreviewing(false)}
           />
         )}
         {failed ? (
@@ -76,6 +106,11 @@ export function FootagePreview({
           </span>
         ) : null}
         <span className="footage-corners" aria-hidden="true" />
+        {previewing && (
+          <span className="footage-preview-label" aria-hidden="true">
+            <Play size={11} fill="currentColor" /> Previewing
+          </span>
+        )}
         {video.duration_seconds !== null && (
           <span className="timestamp">
             {formatTime(video.duration_seconds * 1000)}
