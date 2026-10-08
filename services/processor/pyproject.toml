@@ -10,6 +10,7 @@ dependencies = [
     "torch==2.10.0",
     "torchvision==0.25.0",
     "pillow==12.1.1",
+    "boto3==1.43.109",
 ]
 
 [dependency-groups]
@@ -31,7 +32,10 @@ explicit = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-markers = ["real_model: loads the real checkpoint; enable with FRAMESEARCH_REAL_MODEL_TEST=1"]
+markers = [
+    "real_model: loads the real checkpoint; enable with FRAMESEARCH_REAL_MODEL_TEST=1",
+    "minio: exercises a live MinIO instance; enable with FRAMESEARCH_MINIO_TEST=1",
+]
 
 [tool.ruff]
 target-version = "py312"
