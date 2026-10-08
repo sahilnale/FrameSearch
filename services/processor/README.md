@@ -7,8 +7,8 @@ and private source/thumbnail transfers through MinIO's S3 API. PostgreSQL
 connections, atomic job claims, and retry-safe frame writes are verified against
 the shared schema, including transactional success and failure finalization.
 These stages are connected by a real video indexing operation with bounded
-single-job retries and durable terminal outcomes. Kafka consumption and the
-ingestion worker lifecycle are subsequent features.
+single-job retries and durable terminal outcomes. Kafka consumption and the serial
+ingestion loop are verified; HTTP startup integration is the next feature.
 
 ## Install and test the embedding core
 
@@ -647,7 +647,7 @@ is rejected until `acknowledge(message)` confirms a synchronous commit of that
 exact message's next offset, including the returned partition/error/offset.
 The caller must first confirm durable completed/failed state through `JobProcessor`.
 Commit errors leave the event pending. `close()` leaves the group without committing
-pending work. This checkpoint is not yet connected to the HTTP service or job loop.
+pending work. The serial loop below connects it to jobs; HTTP startup is still pending.
 
 From the repo root, run a disposable real-broker check with no published ports:
 
@@ -666,6 +666,38 @@ There are 32 new adapter unit checks for failure/ordering/close guards. Host sui
 **346 passed, 124 skipped** (4.42 seconds). Actual production-image native client
 construction and genuine offline CLIP inference pass as UID 10001 without source
 mounts. No public API ingestion or semantic evaluation is claimed by these tests.
+
+## Serial Kafka ingestion loop
+
+`IngestionWorker(consumer, jobs, stop_event).run()` starts the consumer and handles
+one event/job at a time on its calling worker thread. It parses the frozen envelope,
+calls `JobProcessor.process`, and acknowledges only a confirmed completed/failed/
+already-terminal outcome. Its readiness event is cleared on every exit. The service
+must give the job processor and worker the same shutdown event and shared model.
+
+Malformed events, busy/missing jobs, database uncertainty, and offset commit failures
+stop consumption, close the consumer, and leave the unresolved offset pending.
+The loop never moves past that event to acknowledge later work. Investigate malformed
+records; for interrupted processing, stop the sole processor before using Go's
+reconciliation command. No DLQ or claim lease is introduced.
+
+From the repo root with genuine weights already cached:
+
+```sh
+python services/processor/tests/run_kafka_tests.py --indexing
+# Reuse the current production/dev images:
+python services/processor/tests/run_kafka_tests.py --indexing --skip-build
+```
+
+This adds disposable PostgreSQL 17/pgvector 0.8.0 and MinIO to the isolated Kafka
+network, applies the unchanged shared migration, mounts weights/source read-only,
+and cleans its test resources. **156 focused checks passed, no skips** (12.95 seconds),
+including 17 loop checks and five actual Kafka-to-database pipeline checks. Real
+events produce three genuine normalized vectors/JPEG objects at `0, 3000, 6000`,
+duplicates cause one DB claim, corrupt MP4s commit failed state, and malformed/busy/
+missing events leave offsets and later queued work untouched. Host suite:
+**363 passed, 129 skipped** (4.46 seconds). This is not public Go API ingestion or
+semantic evaluation. HTTP service startup does not yet launch the loop.
 
 ## Integration notes for Developer 1
 

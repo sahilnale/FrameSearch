@@ -27,8 +27,9 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | Persistent model cache matching shared Compose | Implemented, verified, pushed | Commit `a096699`; 13 settings checks, non-root named-volume persistence, and real offline CLIP inference pass |
 | Bounded single-job retries and durable outcomes | Implemented, verified, pushed | Commit `04f35db`; 24 policy checks and three actual queued-event pipeline checks; 235 focused live checks pass |
 | Pinned Kafka client and shared configuration | Implemented, verified, pushed | Commit `8e029ad`; 34 Kafka configuration checks; 62 focused configuration checks pass; native consumer constructs/closes |
-| Kafka consumer with manual offset commits | Implemented, verified | 32 adapter checks and three real Kafka 3.9 redelivery/offset/topic checks; 134 focused checks pass |
-| Kafka-to-job loop and HTTP/worker lifecycle | Planned | Not run |
+| Kafka consumer with manual offset commits | Implemented, verified, pushed | Commit `ed6e68e`; 32 adapter checks and three real Kafka 3.9 redelivery/offset/topic checks; 134 focused checks pass |
+| Serial Kafka-to-job ingestion loop | Implemented, verified | 17 loop checks and five actual Kafka-to-CLIP/MinIO/PostgreSQL checks; 156 focused checks pass |
+| Shared HTTP/worker lifecycle | Planned | Not run |
 | Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
 
 This file is Developer 2-owned. Developer 1 maintains the root progress document.
@@ -417,9 +418,35 @@ Only successfully executed checks will be marked verified here.
 - Adapter does not yet call `JobProcessor` or run during HTTP service lifespan;
   those are subsequent independent checkpoints. No full public API smoke yet.
 
+## Serial Kafka indexing checkpoint
+
+- Added `IngestionWorker` separately from HTTP startup. Parses each keyed event,
+  runs the single-job policy, and acknowledges only its durable terminal return.
+  One job executes at a time; any unresolved event stops consumption without
+  advancing to later events. Readiness clears and the consumer closes on all exits.
+  Shutdown before/during poll or retry cannot claim/acknowledge new unfinished work.
+- **17 loop unit checks pass**, covering durable ordering, idle/shutdown paths,
+  invalid events, uncertain jobs/commits, unknown outcomes, startup/close failures,
+  and preservation of the original failure when close also fails.
+- Extended the owned Kafka test helper with `--indexing`: disposable PostgreSQL
+  17/pgvector 0.8.0, private MinIO, unchanged migration, cached genuine CLIP,
+  internal networking, no published ports, and read-only source/checkpoint mounts.
+  Five real cases verify successful indexing/duplicate acknowledgment, corrupt
+  MP4 terminal failure, and malformed/busy/missing events that stop without
+  committing or processing later queued work. Sources/JPEG temp files are cleaned.
+- `python services/processor/tests/run_kafka_tests.py --indexing --skip-build`:
+  **156 passed, no skips** (12.95 seconds). Production/dev images built beforehand.
+  The first run exposed a missing PYTHONPATH in the new schema-wait helper; fixed
+  the test-container import path and reran successfully. Test-owned rows/objects/
+  topics/groups, containers, and network were removed.
+- Host suite: **363 passed, 129 skipped** (4.46 seconds). Ruff, formatting, offline
+  lockfile validation, and whitespace checks pass. No shared files or unrelated
+  services modified. The HTTP service does not yet launch this worker; service
+  lifecycle and the public Go end-to-end path remain separate work.
+
 ## Remaining sequence
 
-1. Kafka-to-job loop and service lifecycle.
+1. Shared HTTP/worker lifecycle.
 2. Real backend/processor end-to-end smoke test using the shared infrastructure.
 3. Frontend upload, search, and playback, after the backend integration works.
 
