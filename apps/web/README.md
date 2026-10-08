@@ -29,7 +29,10 @@ npm run build
   checks, status polling, failed-index retry, and completion retry without a second
   upload. State survives navigation within the app. A browser reload loses the
   selected local file; the shared API has no upload-resume URL endpoint.
-- Next: search results and timestamp playback.
+- Search: actual Go results, per-video filters, signed thumbnails, true timestamps
+  and raw cosine scores. New queries abort older requests; expired thumbnails have
+  a refresh action. Query chips are descriptions to try, not recorded results.
+- Next: timestamp playback.
 
 Foundation checks: ESLint (zero warnings), TypeScript, and production build passed.
 The browser preview was inspected at its default compact size and 1440px desktop.
@@ -38,5 +41,9 @@ The font is bundled locally with its SIL Open Font License in `src/fonts/OFL.txt
 Upload checkpoint: three focused UI tests, ESLint, and production build passed.
 The tests isolate HTTP/transfer calls to exercise double submission and interrupted
 completion. Real browser ingestion will be checked against the genuine stack.
+
+Search checkpoint: six focused UI tests (upload plus search), lint, and production
+build passed. The race test checks that a slow previous query cannot replace a
+newer result. These unit fixtures are separate from the application's live data.
 
 Developer 1's infrastructure, API and schema remain unchanged.
