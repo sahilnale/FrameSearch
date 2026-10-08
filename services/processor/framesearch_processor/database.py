@@ -17,6 +17,7 @@ from .storage import thumbnail_key
 CONNECT_TIMEOUT_SECONDS = 5
 STATEMENT_TIMEOUT_MS = 15000
 LOCK_TIMEOUT_MS = 5000
+MAX_PROCESSING_ERROR_CHARACTERS = 1000
 
 
 class DatabaseError(RuntimeError):
@@ -304,3 +305,29 @@ class Database:
             ).rowcount
             if updated_job != 1 or updated_video != 1:
                 raise JobStateError("Completion could not update both job and video")
+
+    def fail_job(self, claim: ClaimedJob, reason: str) -> None:
+        """Record terminal failure on both rows before an event can be acknowledged."""
+        _validate_claim(claim)
+        if (
+            not isinstance(reason, str)
+            or not 1 <= len(reason.strip()) <= MAX_PROCESSING_ERROR_CHARACTERS
+        ):
+            raise ValueError("failure reason must contain 1–1000 characters after trimming")
+        reason = reason.strip()
+        with self.connection() as connection:
+            self._require_processing_claim(connection, claim)
+            updated_job = connection.execute(
+                """UPDATE processing_jobs SET status = 'failed', last_error = %s,
+                          updated_at = now()
+                     WHERE id = %s AND video_id = %s AND status = 'processing'
+                       AND attempt_count = %s""",
+                (reason, claim.job_id, claim.video_id, claim.attempt_count),
+            ).rowcount
+            updated_video = connection.execute(
+                """UPDATE videos SET status = 'failed', processing_error = %s, updated_at = now()
+                     WHERE id = %s AND status = 'processing'""",
+                (reason, claim.video_id),
+            ).rowcount
+            if updated_job != 1 or updated_video != 1:
+                raise JobStateError("Failure could not update both job and video")
