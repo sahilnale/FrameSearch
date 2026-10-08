@@ -1,0 +1,16 @@
+{
+  "dataset": "framesearch-commons-real-v1",
+  "scope": "Small manually labeled real-footage sanity check; not a representative benchmark",
+  "labeling": "Queries and relevant sampled timestamps fixed after visual inspection and before CLIP inference. Timestamps are relative to the prepared 18-second excerpts.",
+  "queries": [
+    {"text": "a puppy playing indoors", "expected_clip": "puppy-indoors", "expected_timestamp_ms": [0, 3000, 6000, 9000, 12000, 15000]},
+    {"text": "a dog on a tiled floor", "expected_clip": "puppy-indoors", "expected_timestamp_ms": [0, 3000, 6000, 9000, 12000, 15000]},
+    {"text": "a small brown dog in a room with green walls", "expected_clip": "puppy-indoors", "expected_timestamp_ms": [0, 3000, 6000, 9000, 12000, 15000]},
+    {"text": "a waterfall flowing over rocks", "expected_clip": "park-waterfall", "expected_timestamp_ms": [0, 3000, 6000, 9000, 12000, 15000]},
+    {"text": "a garden with trees and cascading water", "expected_clip": "park-waterfall", "expected_timestamp_ms": [0, 3000, 6000, 9000, 12000, 15000]},
+    {"text": "a small stream running between rocks and plants", "expected_clip": "park-waterfall", "expected_timestamp_ms": [0, 3000, 6000, 9000, 12000, 15000]},
+    {"text": "a passenger train next to a station platform", "expected_clip": "passenger-train", "expected_timestamp_ms": [9000, 12000, 15000]},
+    {"text": "a train with a yellow front", "expected_clip": "passenger-train", "expected_timestamp_ms": [9000, 12000]},
+    {"text": "an empty railway platform with no train", "expected_clip": "passenger-train", "expected_timestamp_ms": [0, 3000, 6000]}
+  ]
+}
