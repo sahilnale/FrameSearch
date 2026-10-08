@@ -32,15 +32,37 @@ Work proceeds in review milestones at the user's request. Stop after each milest
 - Formatting: all Go sources processed with gofmt.
 - macOS evicted the first downloaded toolchain in Documents; testing completed
   with Go 1.24.7 downloaded into `/private/tmp/framesearch-go-runtime` instead.
-- No Docker installed and no TEST_DATABASE_URL provided; DB/infrastructure execution
-  is blocked until infrastructure is available.
+- At this earlier checkpoint Docker was absent; milestone 3 below resolves that
+  blocker and executes these database/infrastructure tests.
 
-## 3. Infrastructure — planned, awaiting milestone 2 approval
+## 3. Infrastructure — implemented and verified; awaiting review
 
-- Compose for PostgreSQL, Kafka KRaft, MinIO, migrations, Go API, processor and web.
-- Bucket initialization, local CORS, loopback ports and persistent volumes.
-- Root Makefile and startup README.
-- Actual Compose startup and real backend infrastructure tests.
+- Docker Desktop installed; verified the Linux ARM64 engine and Compose.
+- PostgreSQL/pgvector and Kafka are healthy with persisted data and loopback ports.
+- Initial migration executed successfully and reran without destructive changes.
+- All three previously skipped DB tests passed (0.690 seconds).
+- MinIO public images/binaries were unavailable; built genuine server and mc
+  from pinned upstream source tags. Both Docker source builds succeeded.
+- Private media bucket initialization succeeded; CORS permits the frontend origin.
+- Real HTTP/S3/Kafka test passed (3.100 seconds): signed PUT, object metadata,
+  repeated complete with one job, actual keyed event, byte-range GET, private GET
+  rejection and browser CORS. Payload is opaque test bytes, not a real-video test.
+- Full backend suite with real DB/MinIO/Kafka passed with race detection
+  (2.735 seconds); no races reported.
+- `make test-infra` passed inside Compose (1.146 seconds). Container tests use
+  internal service addresses and isolated DB schemas and storage buckets.
+- Go API Docker build/start succeeded. `/health/live` returns 200 and library
+  returns an empty array. `/health/ready` correctly returns 503 without processor.
+- Full Compose configuration validation passed, including app/test profiles.
+- Processor/web service configuration and persistent model cache are present;
+  their Dockerfiles remain Developer 2's responsibility.
+- Root Makefile and startup README added. Full `make up` intentionally fails its
+  clear missing-processor guard until Developer 2 integrates.
+- `make backend` and `make migrate` passed. `make reconcile` passed with zero
+  queued application jobs; actual queued/stale DB recovery is covered by tests.
+- Stale-worker recovery target cannot be run until a real processor exists.
+- Work is isolated on `backend-infrastructure`; each feature is committed
+  separately and pushed for review. Main's implementation is preserved.
 
 ## 4. Integration — planned, blocked on Developer 2 components
 
@@ -52,4 +74,5 @@ Work proceeds in review milestones at the user's request. Stop after each milest
 No changes to Developer 2-owned directories. The user requested incremental
 commits and pushes at review milestones. Milestone 2 is being saved as shared
 contract/schema and backend/tests commits; consult git log for commit identities.
-Do not advance to infrastructure until the user approves this checkpoint.
+The user subsequently approved continuing infrastructure. Stop after milestone
+3 for review before integrating Developer 2 components.

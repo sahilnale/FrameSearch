@@ -1,6 +1,6 @@
 # Frozen backend integration contracts
 
-Status: backend code and contracts exist. Compose, Makefile and processor/web integration described below are planned for subsequent review milestones; no live infrastructure or full video path has been verified.
+Status: backend Compose services, migrations, storage upload, Kafka publication, and real database retrieval tests have been verified. Makefile commands exist. Processor/web integration is configured under the app profile but remains blocked on Developer 2 files; no full video path has been verified.
 
 The authoritative specification is `FrameSearch_Specs/SPEC.md`, section 13. Developer 1 owns Go, database, infrastructure, root docs and Makefile. Developer 2 exclusively owns `services/processor`, `apps/web` and `scripts`.
 
@@ -29,3 +29,17 @@ make reconcile republishes queued jobs while the processor may run. Crash recove
 `db/migrations/001_initial.sql` is transactional, non-destructive and rerunnable for the initial schema. Compose runs a dedicated psql migration service on every startup; PostgreSQL persists in a volume. Future schema changes must be new migrations, not silent alterations to 001. HNSW cosine index is provided; PostgreSQL may use exact distance on this tiny dataset. Parameterized query orders by embedding <=> vector and frame UUID to break ties.
 
 No authentication; bind published ports to loopback. This is a local demo, not a public deployment. Processor and frontend are not implemented by Developer 1; full Compose build requires Developer 2's Dockerfiles. Model cache persists in a named volume; first load downloads genuine checkpoint weights and may take time.
+
+## Infrastructure implementation notes
+
+The default Compose services run PostgreSQL, Kafka, MinIO, initialization, and Go.
+The `app` profile adds Developer 2's services, and the `tests` profile runs real
+backend integration tests using internal container addresses. `make up` checks
+for Developer 2 Dockerfiles; `make backend` starts only available services.
+MinIO public image pulls failed and upstream binary archives returned 410, so
+`infra/minio/Dockerfile` builds the server and client from pinned upstream tags.
+This retains real MinIO and adds first-build download/compile time.
+
+Current work is on branch `backend-infrastructure` in a separate writable
+checkout. The original Downloads checkout is on main; use the review branch to
+inspect these changes. No Developer 2 directory has been edited.
