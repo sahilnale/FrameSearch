@@ -24,7 +24,7 @@ vi.mock("@/components/workspace", () => ({
   useWorkspace: () => workspace,
 }));
 vi.mock("@/lib/api", () => ({
-  api: { search: vi.fn() },
+  api: { search: vi.fn(), playback: vi.fn() },
   errorMessage: (error: Error) => error.message,
 }));
 beforeEach(() => {
@@ -41,6 +41,10 @@ beforeEach(() => {
   ];
   workspace.loading = false;
   workspace.error = null;
+  vi.mocked(api.playback).mockResolvedValue({
+    url: "http://storage/signed-video",
+    expires_in_seconds: 900,
+  });
 });
 const result = {
   video_id: "video-id",
@@ -152,4 +156,44 @@ it("waits for the library response before displaying first-upload guidance", () 
     "Loading your library",
   );
   expect(screen.queryByRole("link", { name: "Upload video" })).toBeNull();
+});
+
+it("caps footage previews and uses the selected source without losing the query", async () => {
+  const original = workspace.videos[0];
+  workspace.videos = [
+    original,
+    { ...original, id: "second", filename: "second.mp4" },
+    { ...original, id: "third", filename: "third.mp4" },
+    { ...original, id: "fourth", filename: "fourth.mp4" },
+    { ...original, id: "pending", filename: "pending.mp4", status: "queued" },
+  ];
+  vi.mocked(api.search).mockResolvedValue({ query: "water", results: [] });
+  render(<SearchExperience />);
+  await waitFor(() => expect(api.playback).toHaveBeenCalledTimes(3));
+  expect(
+    screen.queryByRole("button", { name: "Search fourth.mp4" }),
+  ).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Search pending.mp4" }),
+  ).toBeNull();
+  const input = screen.getByLabelText("Describe a visual moment");
+  fireEvent.change(input, { target: { value: "water" } });
+  const source = screen.getByRole("button", { name: "Search second.mp4" });
+  fireEvent.click(source);
+  expect(source.getAttribute("aria-pressed")).toBe("true");
+  expect(document.activeElement).toBe(input);
+  expect((input as HTMLInputElement).value).toBe("water");
+  expect(
+    (screen.getByLabelText("Search videos") as HTMLSelectElement).value,
+  ).toBe("second");
+  fireEvent.click(source);
+  expect(source.getAttribute("aria-pressed")).toBe("false");
+  fireEvent.click(source);
+  fireEvent.submit(screen.getByRole("search"));
+  await screen.findByText("No matching frames");
+  expect(api.search).toHaveBeenLastCalledWith(
+    "water",
+    "second",
+    expect.any(AbortSignal),
+  );
 });

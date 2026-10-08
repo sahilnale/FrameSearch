@@ -17,6 +17,7 @@ import type { SearchResult } from "@/lib/contracts";
 import { formatTime } from "@/lib/upload";
 import { useWorkspace } from "./workspace";
 import { PlaybackOverlay } from "./playback-overlay";
+import { FootagePreview } from "./footage-preview";
 
 export function SearchWorkspace() {
   const parameters = useSearchParams();
@@ -259,32 +260,51 @@ export function SearchExperience({
         <div className="empty-panel search-start" role="status">
           <span className="spinner" /> Loading your library…
         </div>
+      ) : ready.length ? (
+        <section className="footage-section" aria-label="Your footage">
+          <div className="section-heading">
+            <div>
+              <h2>Your footage</h2>
+              <p className="result-query">
+                Choose a video, or search the whole library above.
+              </p>
+            </div>
+            <Link href="/library" className="text-button">
+              View library <ArrowUpRight size={15} />
+            </Link>
+          </div>
+          <div className="footage-grid">
+            {ready.slice(0, 3).map((video) => (
+              <FootagePreview
+                key={video.id}
+                video={video}
+                selected={scope === video.id}
+                onSelect={() => {
+                  setScope(scope === video.id ? "" : video.id);
+                  input.current?.focus();
+                }}
+              />
+            ))}
+          </div>
+        </section>
       ) : (
         <section className="empty-panel search-start">
           <Search size={30} strokeWidth={1.5} />
           <h2>
-            {ready.length
-              ? "Find a frame in your videos"
-              : videos.length
-                ? "No searchable videos yet"
-                : "Start with a video"}
+            {videos.length ? "No searchable videos yet" : "Start with a video"}
           </h2>
           <p>
-            {ready.length
-              ? "Enter a visual description above. Matching frames will appear here."
-              : videos.length
-                ? "Check your library for upload and indexing status. Videos become searchable when indexing finishes."
-                : "Upload a video and wait for indexing to finish before searching."}
+            {videos.length
+              ? "Check your library for upload and indexing status. Videos become searchable when indexing finishes."
+              : "Upload a video and wait for indexing to finish before searching."}
           </p>
-          {!ready.length && (
-            <Link
-              href={videos.length ? "/library" : "/library?upload=1"}
-              className="button button-secondary"
-            >
-              {videos.length ? "Open library" : "Upload video"}{" "}
-              <ArrowRight size={16} />
-            </Link>
-          )}
+          <Link
+            href={videos.length ? "/library" : "/library?upload=1"}
+            className="button button-secondary"
+          >
+            {videos.length ? "Open library" : "Upload video"}{" "}
+            <ArrowRight size={16} />
+          </Link>
         </section>
       )}
       {selected && (
