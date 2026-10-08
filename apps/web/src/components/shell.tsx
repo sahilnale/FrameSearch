@@ -15,7 +15,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <span className="brand-mark">
             <Scan size={22} />
           </span>
-          <span>
+          <span className="brand-wordmark">
             Frame<span className="brand-light">Search</span>
           </span>
         </Link>
