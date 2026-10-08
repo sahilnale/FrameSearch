@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-07",
+  "featureCommit": "c7f0b43",
+  "browser": "Codex in-app Chromium",
+  "genuineBackend": true,
+  "uploadsRepeated": false,
+  "unitTests": {
+    "passed": 21,
+    "files": 5,
+    "durationSeconds": 1.3
+  },
+  "build": "production Docker build passed",
+  "previews": [
+    {
+      "currentTime": 0.1,
+      "duration": 18,
+      "error": null,
+      "paused": true,
+      "readyState": 4
+    },
+    {
+      "currentTime": 0.1,
+      "duration": 18,
+      "error": null,
+      "paused": true,
+      "readyState": 4
+    },
+    {
+      "currentTime": 0.1,
+      "duration": 18,
+      "error": null,
+      "paused": true,
+      "readyState": 4
+    }
+  ],
+  "responsive": [
+    {
+      "cards": 3,
+      "documentWidth": 1440,
+      "viewport": 1440
+    },
+    {
+      "cards": 3,
+      "documentWidth": 390,
+      "viewport": 390
+    },
+    {
+      "cards": 3,
+      "documentWidth": 320,
+      "viewport": 320
+    }
+  ],
+  "finalResponsive": [
+    {
+      "cards": 3,
+      "documentWidth": 628,
+      "viewport": 628
+    },
+    {
+      "cards": 3,
+      "documentWidth": 390,
+      "viewport": 390
+    },
+    {
+      "cards": 3,
+      "documentWidth": 1440,
+      "viewport": 1440
+    },
+    {
+      "cards": 3,
+      "documentWidth": 320,
+      "viewport": 320
+    }
+  ],
+  "finalPreviews": [
+    {
+      "currentTime": 0.1,
+      "duration": 18,
+      "error": null,
+      "paused": true,
+      "readyState": 4
+    },
+    {
+      "currentTime": 0.1,
+      "duration": 18,
+      "error": null,
+      "paused": true,
+      "readyState": 4
+    },
+    {
+      "currentTime": 0.1,
+      "duration": 18,
+      "error": null,
+      "paused": true,
+      "readyState": 4
+    }
+  ],
+  "sourceSelection": {
+    "queryPreserved": true,
+    "inputFocused": true,
+    "selectedVideo": "bd60541c-2afe-48e1-aa36-a4b3204f4605",
+    "secondSelectionReturnedToAll": true
+  },
+  "search": {
+    "query": "a passenger train",
+    "unfilteredResults": 12,
+    "filteredResults": 6,
+    "loadedFilteredThumbnails": 6
+  },
+  "playback": {
+    "matchTimestampMs": 12000,
+    "currentTime": 12.213259,
+    "duration": 18,
+    "readyState": 4,
+    "paused": false,
+    "error": null,
+    "escapeClosed": true,
+    "focusRestoredTo": "Play passenger-train.mp4 at 00:12"
+  },
+  "scope": "Search/playback tested before final CSS whitespace adjustment; final paused previews and responsive starting screen checked after it. No semantic benchmark or wider browser matrix."
+}

@@ -33,10 +33,11 @@ pytestmark = [
 
 
 @contextmanager
-def running_service(settings, storage, tmp_path):
-    with socket.socket() as reservation:
-        reservation.bind(("127.0.0.1", 0))
-        port = reservation.getsockname()[1]
+def running_service(settings, storage, tmp_path, *, port=None):
+    if port is None:
+        with socket.socket() as reservation:
+            reservation.bind(("127.0.0.1", 0))
+            port = reservation.getsockname()[1]
     temporary = tmp_path / "processor-temp"
     temporary.mkdir()
     log = tmp_path / "processor.log"

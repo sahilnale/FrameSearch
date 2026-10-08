@@ -11,8 +11,11 @@ single-job retries and durable terminal outcomes. The service launches the seria
 Kafka ingestion loop and shares one loaded model with its text HTTP endpoint.
 The complete live processor suite passes. Labeled synthetic and real-footage
 search evaluations are recorded; the real sample exposes two first-frame misses.
-The public Go API smoke test and frontend remain pending. See `VERIFICATION.md`
-for exact results and remaining scope.
+The public Go API upload/queue/search/signed-read smoke now passes in an isolated
+live stack. The frontend now supports uploads, search, and timestamp playback;
+its genuine browser happy path also passes. Full shared Compose startup and public
+recovery integrations remain pending. See `VERIFICATION.md` and
+`../../apps/web/VERIFICATION.md` for exact results and remaining scope.
 
 ## Install and test the embedding core
 
@@ -123,7 +126,7 @@ From the repository root:
 ```sh
 docker build -t framesearch-processor services/processor
 # Use --env-file .env instead when that file configures your existing local stack.
-# Select processor explicitly while the frontend is still being built.
+# Select processor explicitly for processor-only development.
 docker compose --env-file .env.example -f infra/docker-compose.yml up -d --build processor
 ```
 
@@ -144,8 +147,9 @@ internal, persists `/model-cache`, and probes `/health/ready`. Selecting process
 starts its database/migration, broker/topic, and storage/bucket dependencies.
 Allow time for the initial model download. Keep exactly one processor replica and
 one Uvicorn worker. The command is an integration instruction; the disposable
-processor stack below has been verified, while full shared Compose/Go smoke is
-still pending. The frontend is not required for these processor checks.
+processor stack below and separate public API/browser happy paths are verified.
+Full shared Compose startup remains pending. The frontend is not required for
+these processor checks.
 
 Verify a running local service over an actual HTTP socket:
 
@@ -740,7 +744,7 @@ later queued work. Host suite: **375 passed, 131 skipped** (4.43 seconds).
 
 For valid queued work left by the DB-to-Kafka publish gap, Go provides
 `make reconcile`. For stale processing jobs, stop the sole processor before Go's
-stale-recovery pass. Until the frontend Dockerfile exists, use these explicit
+stale-recovery pass. For processor-only recovery, use these explicit
 equivalents of the root `reconcile-stale` target (use your existing env file):
 
 ```sh
@@ -753,8 +757,9 @@ docker compose --env-file .env.example -f infra/docker-compose.yml start process
 The API image must already be built; shared `RECONCILE_STALE_AFTER` defaults to
 15 minutes. This recovery republishes valid queued/stale jobs; malformed Kafka
 records require investigation and explicit resolution. There is no claim lease,
-DLQ, or atomic database/Kafka transaction. Public Go upload/search/playback smoke
-still needs its own checkpoint. Synthetic relevance results are recorded below.
+DLQ, or atomic database/Kafka transaction. Public API and browser happy-path
+checkpoints are recorded below and in the owned web verification report.
+Synthetic relevance results are recorded below.
 
 ## Generated data and labeled search check
 
@@ -805,6 +810,27 @@ to use this dataset instead of generated shapes in a future complete run.
 
 ## Integration notes for Developer 1
 
+The actual Go API queue smoke can run independently of the frontend:
+
+```sh
+python services/processor/tests/run_kafka_tests.py --indexing --api
+# After successfully building the current API/processor test images:
+python services/processor/tests/run_kafka_tests.py --indexing --api --skip-build
+```
+
+Requires cached real CLIP and prepared Commons excerpts from
+`scripts/prepare_real_clips.py`. It builds the unchanged canonical Go API image,
+copies its actual executable into the test runtime, and uses disposable real
+Kafka/MinIO/PostgreSQL with the unchanged migration. It creates all videos/jobs
+through public HTTP upload/complete calls, checks three queued jobs/events while
+the processor is stopped, starts the real service, and verifies all three jobs,
+18 real frames, and committed offset 3. Duplicate completions add no jobs/events.
+Public search/filtering, signed JPEG/MP4, byte-range reads, and 403 unsigned reads
+pass. **One live check passed, zero skips** (9.16 seconds); summary is in
+`evaluations/api-queue-smoke.json`. Test resources are removed afterward. This
+does not verify a browser or shared Compose's default public addresses. Public
+failed-upload retry and stale-crash recovery remain separate integration checks.
+
 The complete processor/AI suite can run without the Go service or frontend:
 
 ```sh
@@ -817,11 +843,15 @@ All live dependency flags are enabled, including real media and model checks.
 The complete suite at `02a95cc` passed **506 tests with zero skips** (47.94 seconds).
 The separately executed labeled check adds one more test to future full runs. See
 `VERIFICATION.md` for the tested behavior and remaining integration boundaries.
+Add `--api` to `--indexing --full` to include the new opt-in public API smoke and
+build its combined test image; otherwise that case is deliberately skipped.
 
 The frozen model version and all shared contracts are unchanged. No Go, schema,
 infrastructure, shared docs, or environment files are modified by this work.
 The internal HTTP server listens on `0.0.0.0:8000` within Compose and starts the
 single indexing worker automatically. Shared MinIO must retain its persistent
 data, private bucket, credentials/CORS, and Go's browser-accessible signing
-endpoint. The processor uses only the internal storage endpoint. The remaining
-integration step is the actual public Go upload/search/playback smoke test.
+endpoint. The processor uses only the internal storage endpoint. Remaining
+integration includes full shared Compose startup and public retry/recovery. The
+frontend's real browser happy path passes separately; see
+`../../apps/web/VERIFICATION.md`.

@@ -1,0 +1,77 @@
+{
+  "responsive": [
+    {
+      "documentWidth": 1440,
+      "viewport": 1440
+    },
+    {
+      "documentWidth": 320,
+      "viewport": 320
+    },
+    {
+      "documentWidth": 390,
+      "viewport": 390
+    },
+    {
+      "documentWidth": 1440,
+      "viewport": 1440
+    }
+  ],
+  "posters": [
+    {
+      "currentTime": 9.525,
+      "duration": 19.05,
+      "error": null,
+      "muted": true,
+      "paused": true,
+      "readyState": 4
+    },
+    {
+      "currentTime": 2.26,
+      "duration": 4.52,
+      "error": null,
+      "muted": true,
+      "paused": true,
+      "readyState": 4
+    },
+    {
+      "currentTime": 6.48,
+      "duration": 12.96,
+      "error": null,
+      "muted": true,
+      "paused": true,
+      "readyState": 4
+    }
+  ],
+  "hover": {
+    "currentTime": 9.784249,
+    "duration": 19.05,
+    "error": null,
+    "muted": true,
+    "paused": false
+  },
+  "leave": {
+    "currentTime": 9.525,
+    "duration": 19.05,
+    "error": null,
+    "paused": true
+  },
+  "searchPlayback": {
+    "currentTime": 12.23224,
+    "duration": 18,
+    "error": null,
+    "readyState": 4
+  },
+  "searchFocus": "Play passenger-train.mp4 at 00:12",
+  "libraryPlayback": {
+    "currentTime": 0.142721,
+    "duration": 18,
+    "error": null,
+    "readyState": 4
+  },
+  "libraryFocus": "Play passenger-train.mp4",
+  "libraryResponsive": {
+    "documentWidth": 320,
+    "viewport": 320
+  }
+}

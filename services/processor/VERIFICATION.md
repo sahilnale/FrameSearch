@@ -2,7 +2,9 @@
 
 Branch: `codex/processor-core`. Service lifecycle checkpoint: `0927c2f`.
 Full regression checkpoint: `02a95cc`; fixture generator checkpoint: `4f5738f`.
-The public Go backend and frontend are excluded from this processor verification.
+The original regression excludes the Go backend. A separate actual public API
+queue smoke is recorded below. Frontend/browser happy-path verification is
+recorded separately in `../../apps/web/VERIFICATION.md`.
 
 ## Executed complete suite
 
@@ -144,12 +146,67 @@ clip/frame first. Host regression: **375 passed, 132 opt-in live checks skipped*
 pass. All test-owned rows, private buckets/objects, topic/group, processes,
 containers, and networks were removed. No Developer 1 files changed.
 
+## Actual Go API and queue smoke
+
+```sh
+python services/processor/tests/run_kafka_tests.py --indexing --api --skip-build
+```
+
+**One live API integration test passed in 9.16 seconds, zero skips.** The Go API
+was built from its unchanged canonical `services/api/Dockerfile` at main commit
+`66faaf4`. The owned test image copies that actual executable into the processor
+test runtime. Both real service processes run as UID 10001 with real HTTP sockets,
+Kafka 3.9, private MinIO, PostgreSQL 17/pgvector 0.8.0, FFmpeg, and cached CPU CLIP.
+No queued jobs or frames are seeded: the public API creates and publishes them.
+
+1. Start Go while the processor is stopped. API readiness correctly returns 503.
+2. Request upload URLs, PUT all three hash-verified real clips to private MinIO,
+   then call `complete` twice per clip. Exactly three real keyed Kafka events,
+   three durable queued jobs, zero claim attempts, and unset processor offsets
+   are inspected. Repeated completion creates no extra job/event. Playback is
+   rejected with 409 before videos are ready.
+3. Start the actual packaged processor. All three queued jobs finish with one
+   claim each, videos become ready, jobs become completed, and committed offset
+   reaches 3. All 18 real frame vectors have 512 finite normalized values and
+   timestamps 0/3000/6000/9000/12000/15000 ms. Go readiness becomes 200.
+4. Public Go search calls the real text endpoint and returns genuine results;
+   the puppy query ranks the puppy video first. Per-video filtering returns six
+   frames with correct filenames/timestamps. Signed JPEG requests return actual
+   images, signed MP4 GET returns the exact uploaded bytes, and byte-range GET
+   returns 206 with correct content/range. Expiry is 900 seconds; unsigned reads
+   return 403. The processor logs one real model load and cleans temporary files.
+
+Raw smoke summary is in `evaluations/api-queue-smoke.json`. The first run reached
+queue creation but its offset inspection raced initial Kafka coordinator loading.
+A bounded read-only wait for the three coordinator startup errors fixed the test;
+no application code or Kafka acknowledgment behavior changed. Host regression:
+**375 passed, 133 explicitly opt-in checks skipped** (4.02 seconds). Ruff,
+formatting, offline lock validation, and whitespace checks pass. The actual API
+case ran separately with every needed dependency enabled and no skipped checks.
+All test-owned rows, private bucket/objects, topic/group, service processes,
+containers, and network were removed. No unrelated project services started.
+
+This proves the actual Go API → Kafka → processor → real vectors → public search
+and signed reads in an isolated network. Public signing addresses point at MinIO
+inside that test network, where the client runs. Shared Compose default localhost
+addresses/CORS, a browser player, and deployment are separate checks. This smoke
+does not newly measure semantic accuracy; the nine-query results above remain.
+
+Without `--skip-build`, the helper builds all required canonical/service test
+images. Prepared real footage and cached weights are prerequisites. To include
+the new public API case in a future complete suite, use `--indexing --full --api`;
+without `--api` that opt-in case is deliberately skipped.
+
 ## Remaining scope
 
-- Public Go upload/complete/retry/search/playback and shared Compose smoke are
-  deferred at the user's request. Internal tests seed queued jobs rather than
-  submitting through the unfinished public backend integration.
-- Frontend work remains deferred until backend integration is ready.
+- Full shared Compose startup with persistent volumes/model cache remains
+  unverified. Separate actual public API and browser happy paths pass.
+- Actual public corrupt-upload → failed → retry → ready and stale-crash recovery
+  remain additional integration checks; their underlying policies/DB behavior
+  have focused coverage, but this happy-path smoke does not claim those flows.
+- Frontend upload/search/playback now works in a genuine live demo, including
+  CORS and native timestamp seeking. The web report records 12 UI tests, built
+  production container, three browser uploads, 18 frames and committed offset 3.
 - Broader relevance remains unmeasured. The real-footage check above records
   two first-frame misses; no model or ranking changes have been made to hide them.
 - Crash recovery relies on stopping the sole processor and using Go's queued/

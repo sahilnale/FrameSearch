@@ -1,0 +1,9 @@
+.next/
+node_modules/
+coverage/
+test-results/
+playwright-report/
+.env*
+AGENTS.md
+src/fonts/
+*.tsbuildinfo

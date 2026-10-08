@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-07",
+  "featureCommit": "431d015",
+  "sharedPlayerCommit": "b6e4350",
+  "browser": "Codex in-app Chromium",
+  "genuineBackend": true,
+  "uploadsRepeated": false,
+  "unitTests": {
+    "passed": 26,
+    "files": 5,
+    "durationSeconds": 1.32
+  },
+  "checks": {
+    "lint": "passed",
+    "typecheck": "passed",
+    "formatting": "passed",
+    "productionDockerBuild": "passed"
+  },
+  "videos": [
+    {
+      "filename": "passenger-train.mp4",
+      "controls": true,
+      "currentTime": 8.888384,
+      "duration": 18,
+      "error": null,
+      "paused": false,
+      "readyState": 4,
+      "searchOnlyControls": 0
+    },
+    {
+      "filename": "park-waterfall.mp4",
+      "controls": true,
+      "currentTime": 0.100806,
+      "duration": 18,
+      "error": null,
+      "paused": false,
+      "readyState": 4
+    },
+    {
+      "filename": "puppy-indoors.mp4",
+      "controls": true,
+      "currentTime": 0.265583,
+      "duration": 18,
+      "error": null,
+      "paused": false,
+      "readyState": 4
+    }
+  ],
+  "responsive": [
+    {
+      "documentWidth": 1440,
+      "playButtons": 3,
+      "viewport": 1440
+    },
+    {
+      "documentWidth": 390,
+      "playButtons": 3,
+      "viewport": 390
+    },
+    {
+      "documentWidth": 320,
+      "playButtons": 3,
+      "viewport": 320
+    }
+  ],
+  "firstClose": {
+    "dialogs": 0,
+    "focused": "Play passenger-train.mp4"
+  },
+  "phonePlayer": {
+    "documentWidth": 320,
+    "viewport": 320,
+    "width": 286,
+    "x": 17
+  },
+  "searchRegression": {
+    "currentTime": 12.209253,
+    "duration": 18,
+    "error": null,
+    "paused": false,
+    "readyState": 4
+  },
+  "initialLibraryPlayerDisplay": "00:00 for each clip",
+  "playbackAvailability": "Ready videos only, per the existing shared playback-url contract",
+  "scope": "All three existing uploaded clips decoded and played through genuine signed URLs. Ticket failure/retry and indexing restrictions are unit-tested; no live outage or new upload was injected."
+}
