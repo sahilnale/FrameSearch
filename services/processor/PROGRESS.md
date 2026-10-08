@@ -1,7 +1,7 @@
 # Developer 2 processor checkpoints
 
 Base contract/backend commit: `1028604`. Branch: `codex/processor-core`.
-Synced latest main `1b1185d` through a merge; the database schema is unchanged.
+Synced main's infrastructure at `7f9308f` through merge `5637745`; schema unchanged.
 Processor checkpoints through atomic job claims were merged and pushed to main
 at `822c29c`. This branch now starts from that main commit; the schema is unchanged.
 Remote main was reorganized into feature commits; the processor work was carried
@@ -28,8 +28,8 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | Bounded single-job retries and durable outcomes | Implemented, verified, pushed | Commit `04f35db`; 24 policy checks and three actual queued-event pipeline checks; 235 focused live checks pass |
 | Pinned Kafka client and shared configuration | Implemented, verified, pushed | Commit `8e029ad`; 34 Kafka configuration checks; 62 focused configuration checks pass; native consumer constructs/closes |
 | Kafka consumer with manual offset commits | Implemented, verified, pushed | Commit `ed6e68e`; 32 adapter checks and three real Kafka 3.9 redelivery/offset/topic checks; 134 focused checks pass |
-| Serial Kafka-to-job ingestion loop | Implemented, verified | 17 loop checks and five actual Kafka-to-CLIP/MinIO/PostgreSQL checks; 156 focused checks pass |
-| Shared HTTP/worker lifecycle | Planned | Not run |
+| Serial Kafka-to-job ingestion loop | Implemented, verified, pushed | Commit `f0f3e44`; 17 loop checks and five actual Kafka-to-CLIP/MinIO/PostgreSQL checks; 156 focused checks pass |
+| Shared HTTP/worker lifecycle | Implemented, verified | 12 lifecycle checks and two actual packaged Uvicorn socket checks; 186 focused checks pass |
 | Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
 
 This file is Developer 2-owned. Developer 1 maintains the root progress document.
@@ -444,11 +444,43 @@ Only successfully executed checks will be marked verified here.
   services modified. The HTTP service does not yet launch this worker; service
   lifecycle and the public Go end-to-end path remain separate work.
 
+## Shared HTTP/indexing service lifecycle checkpoint
+
+- Production HTTP startup now creates one dedicated runtime thread: genuine
+  model load/warmup, existing schema/private-bucket checks, and the serial Kafka
+  loop. HTTP and indexing hold the same model instance. Blocking startup/indexing
+  stays off the event loop. No embedding substitutes or separate model process.
+- Readiness reports loading/starting/stopping/failure as 503 with bounded reasons.
+  A worker failure keeps liveness and healthy text inference available while
+  leaving its unresolved Kafka offset pending. Shutdown signals the shared event,
+  waits for current initialization/indexing and consumer/storage cleanup, then
+  releases model/worker references. No detached initialization thread is abandoned.
+- **12 runtime/builder checks pass**: shared model/stop identity, background
+  initialization, live/text HTTP during startup, schema/storage/broker failures,
+  unexpected worker exit, cleanup, and shutdown waiting for in-flight work.
+  Existing embedding-only factory tests explicitly disable ingestion; the
+  production app always uses the real worker factory and backend environment.
+- Two actual packaged Uvicorn process tests run with PYTHONPATH=/app (no test
+  source override), real cached CPU CLIP, Kafka 3.9, PostgreSQL 17/pgvector 0.8.0,
+  and private MinIO. One logged model load serves normalized HTTP text and three
+  indexed frame vectors/JPEGs; duplicates cause one claim, text-to-pgvector SQL
+  passes, and SIGTERM cleans up. An invalid envelope stops ingestion, changes
+  readiness to worker_failed, leaves the offset unset, and preserves later work.
+- `python services/processor/tests/run_kafka_tests.py --indexing --skip-build`:
+  **186 passed, no skips** (19.42 seconds). Standard production/dev images built
+  with current runtime source first. Updated HTTP verifier accepts worker-starting
+  readiness; it passed against the actual packaged server. All disposable test
+  processes, containers/network, rows/objects/topics/groups were cleaned up.
+- Host suite: **375 passed, 131 skipped** (4.43 seconds). Ruff, formatting, offline
+  lockfile validation, and whitespace checks pass. Documented current startup and
+  stopped-processor stale recovery without requiring a frontend Dockerfile.
+  No shared files or unrelated services modified. Full shared Compose/public Go
+  ingestion/search/playback and semantic evaluation remain unverified.
+
 ## Remaining sequence
 
-1. Shared HTTP/worker lifecycle.
-2. Real backend/processor end-to-end smoke test using the shared infrastructure.
-3. Frontend upload, search, and playback, after the backend integration works.
+1. Real backend/processor end-to-end smoke test using the shared infrastructure.
+2. Frontend upload, search, and playback, after the backend integration works.
 
 Each feature remains a separate tested commit and is pushed at its checkpoint.
 Full end-to-end functionality is not yet implemented.

@@ -21,7 +21,10 @@ def check_service(base_url: str, timeout: float) -> None:
             break
         except HTTPError as exc:
             details = json.load(exc)
-            if exc.code != 503 or details["error"]["code"] != "model_loading":
+            if exc.code != 503 or details["error"]["code"] not in (
+                "model_loading",
+                "worker_starting",
+            ):
                 raise
         except URLError:
             # The process may still be importing dependencies before listening.
