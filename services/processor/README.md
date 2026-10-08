@@ -9,9 +9,10 @@ the shared schema, including transactional success and failure finalization.
 These stages are connected by a real video indexing operation with bounded
 single-job retries and durable terminal outcomes. The service launches the serial
 Kafka ingestion loop and shares one loaded model with its text HTTP endpoint.
-The complete live processor suite and a tiny labeled synthetic search check
-pass. The public Go API smoke test and frontend remain pending. See
-`VERIFICATION.md` for exact results and remaining scope.
+The complete live processor suite passes. Labeled synthetic and real-footage
+search evaluations are recorded; the real sample exposes two first-frame misses.
+The public Go API smoke test and frontend remain pending. See `VERIFICATION.md`
+for exact results and remaining scope.
 
 ## Install and test the embedding core
 
@@ -782,6 +783,25 @@ ranked the expected clip first: top-1 video accuracy **5/5**, Recall@5 **5/5**
 scores are in `evaluations/generated-shapes-v1.json`. This tiny synthetic set
 does not measure relevance on real footage or changing scenes. The evaluator
 records semantic misses honestly rather than requiring a perfect score to pass.
+
+For actual Commons footage, first download/prepare the credited excerpts using
+`scripts/prepare_real_clips.py` (commands in `scripts/README.md`), then run:
+
+```sh
+python services/processor/tests/run_kafka_tests.py --indexing --semantic --real-footage --skip-build
+```
+
+This reuses local hash-verified MP4s without downloading inside tests. The nine
+labels in `scripts/real-footage-labels.json` were committed before inference and
+include relevant sampled timestamps. **One live check passed, no skips** (7.88
+seconds): all nine queries found the correct video first, while **7/9** found the
+correct moment first. A labeled relevant frame appeared in the top five for
+all nine queries. Yellow-front-train and empty-platform queries missed their
+first-frame targets. Mean frame Recall@5 is **85.2%**, Precision@5 **82.2%**.
+Definitions, the misses, and scope are in `VERIFICATION.md`; raw scores/source
+hashes are in `evaluations/commons-real-v1.json`. This is a small real-footage
+check, not a representative accuracy benchmark. Add `--real-footage` to `--full`
+to use this dataset instead of generated shapes in a future complete run.
 
 ## Integration notes for Developer 1
 

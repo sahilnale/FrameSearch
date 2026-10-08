@@ -25,11 +25,20 @@ def main():
         action="store_true",
         help="run only the labeled search check; requires --indexing",
     )
+    parser.add_argument(
+        "--real-footage",
+        action="store_true",
+        help="use cached Commons excerpts for the labeled check; requires --semantic or --full",
+    )
     arguments = parser.parse_args()
     if (arguments.full or arguments.semantic) and not arguments.indexing:
         parser.error("--full/--semantic require --indexing to enable the live dependencies")
     if arguments.full and arguments.semantic:
         parser.error("choose either --full or --semantic")
+    if arguments.real_footage and not (arguments.semantic or arguments.full):
+        parser.error("--real-footage requires --semantic or --full")
+    if arguments.real_footage and not (PROCESSOR / ".cache/real-footage/sources.json").is_file():
+        parser.error("prepare the real-footage fixtures with scripts/prepare_real_clips.py first")
     cache = PROCESSOR / ".cache/openclip"
     if arguments.indexing and not cache.is_dir():
         parser.error("cache real OpenCLIP weights before enabling --indexing")
@@ -235,6 +244,8 @@ def main():
             selection = ""
         if arguments.semantic:
             selection = "-s tests/test_visual_search.py"
+        if arguments.real_footage:
+            command.extend(["--env", "FRAMESEARCH_REAL_FOOTAGE_DIR=/work/.cache/real-footage"])
         command.extend(
             [
                 TEST_IMAGE,
