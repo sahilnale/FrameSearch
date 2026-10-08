@@ -2,6 +2,7 @@
 
 Base contract/backend commit: `1028604`. Branch: `codex/processor-core`.
 Synced main's infrastructure at `7f9308f` through merge `5637745`; schema unchanged.
+Pulled merged main `66faaf4` before the actual public API queue check; Go unchanged.
 Processor checkpoints through atomic job claims were merged and pushed to main
 at `822c29c`. This branch now starts from that main commit; the schema is unchanged.
 Remote main was reorganized into feature commits; the processor work was carried
@@ -35,7 +36,8 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | Tiny synthetic semantic evaluation | Verified | Real packaged service indexes nine frames; all five queries rank the expected clip first; Recall@5 5/5 |
 | Licensed real-footage fixtures | Implemented, verified, pushed | Commit `8997c00`; three hash-pinned Commons recordings, credited 18-second MP4 excerpts, nine labels committed before inference |
 | Real-footage semantic evaluation | Verified | All nine queries find correct video first; relevant moment first in 7/9 and in top five in 9/9; actual pipeline over 18 frames |
-| Public Go end-to-end smoke | Deferred by user | Public upload/retry/search/playback and shared Compose remain unverified |
+| Public Go upload/queue/search/signed-read smoke | Verified | Three actual API uploads queue while processor is stopped, then three jobs complete; 18 real frames, offset 3, no duplicate jobs; 9.16 seconds |
+| Shared Compose/browser and public retry/recovery | Pending | Default public addresses, browser flow, failed-upload retry and stopped-worker recovery need separate integration checks |
 
 This file is Developer 2-owned. Developer 1 maintains the root progress document.
 Only successfully executed checks will be marked verified here.
@@ -512,8 +514,21 @@ query, model, or production ranking changes were made. Generated compatibility
 also passed (7.40 seconds). Host regression **375 passed, 132 skipped** (4.38
 seconds); lint/format/offline lock checks pass; disposable resources cleaned.
 
-1. Real backend/processor end-to-end smoke test using the shared infrastructure.
+The user then requested actual API/queue testing. Built the unchanged canonical
+Go API and ran its public routes with genuine dependencies in a disposable
+network. All three real clip uploads/duplicate completions produced exactly
+three queued jobs/events before starting the processor. Jobs completed with one
+claim each, 18 real vectors, and confirmed offset 3. Public search, correct
+timestamps/filenames, signed JPEG/MP4 and byte-range reads passed. No seeded jobs
+or frame vectors. **One live API smoke passed, zero skips, 9.16 seconds**.
+An initial read-only offset check raced fresh coordinator startup; added a
+bounded wait for coordinator readiness and reran successfully. Host regression
+**375 passed, 133 skipped** (4.02 seconds); lint/format/offline lock/whitespace
+checks pass. Test resources cleaned; no Developer 1 files changed.
+
+1. Shared Compose startup/default public-address checks and public failure/
+   retry/recovery integrations.
 2. Frontend upload, search, and playback, after the backend integration works.
 
 Each feature remains a separate tested commit and is pushed at its checkpoint.
-Full end-to-end functionality is not yet implemented.
+Full browser end-to-end functionality is not yet implemented.

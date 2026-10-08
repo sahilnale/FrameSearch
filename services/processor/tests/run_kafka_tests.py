@@ -9,6 +9,8 @@ from uuid import uuid4
 PROCESSOR = Path(__file__).resolve().parents[1]
 PRODUCTION_IMAGE = "framesearch-processor:kafka-checkpoint"
 TEST_IMAGE = "framesearch-processor:kafka-tests"
+API_IMAGE = "framesearch-api:queue-checkpoint"
+API_TEST_IMAGE = "framesearch-processor:api-tests"
 
 
 def main():
@@ -30,14 +32,21 @@ def main():
         action="store_true",
         help="use cached Commons excerpts for the labeled check; requires --semantic or --full",
     )
+    parser.add_argument(
+        "--api", action="store_true", help="run the public Go API queue smoke; requires --indexing"
+    )
     arguments = parser.parse_args()
-    if (arguments.full or arguments.semantic) and not arguments.indexing:
-        parser.error("--full/--semantic require --indexing to enable the live dependencies")
+    if (arguments.full or arguments.semantic or arguments.api) and not arguments.indexing:
+        parser.error("--full/--semantic/--api require --indexing to enable the live dependencies")
     if arguments.full and arguments.semantic:
         parser.error("choose either --full or --semantic")
+    if arguments.api and arguments.semantic:
+        parser.error("choose either --api or --semantic")
     if arguments.real_footage and not (arguments.semantic or arguments.full):
         parser.error("--real-footage requires --semantic or --full")
-    if arguments.real_footage and not (PROCESSOR / ".cache/real-footage/sources.json").is_file():
+    if (arguments.real_footage or arguments.api) and not (
+        PROCESSOR / ".cache/real-footage/sources.json"
+    ).is_file():
         parser.error("prepare the real-footage fixtures with scripts/prepare_real_clips.py first")
     cache = PROCESSOR / ".cache/openclip"
     if arguments.indexing and not cache.is_dir():
@@ -58,6 +67,23 @@ def main():
             ],
             check=True,
         )
+        if arguments.api:
+            subprocess.run(
+                ["docker", "build", "-t", API_IMAGE, str(PROCESSOR.parents[1] / "services/api")],
+                check=True,
+            )
+            subprocess.run(
+                [
+                    "docker",
+                    "build",
+                    "-t",
+                    API_TEST_IMAGE,
+                    "-f",
+                    str(PROCESSOR / "tests/api-tests.Dockerfile"),
+                    str(PROCESSOR / "tests"),
+                ],
+                check=True,
+            )
     namespace = f"framesearch-kafka-check-{uuid4().hex[:12]}"
     broker, tests = f"{namespace}-broker", f"{namespace}-tests"
     postgres, minio = f"{namespace}-postgres", f"{namespace}-minio"
@@ -244,11 +270,15 @@ def main():
             selection = ""
         if arguments.semantic:
             selection = "-s tests/test_visual_search.py"
-        if arguments.real_footage:
+        if arguments.api:
+            command.extend(["--env", "FRAMESEARCH_API_TEST=1"])
+            if not arguments.full:
+                selection = "-s tests/test_api_queue.py"
+        if arguments.real_footage or arguments.api:
             command.extend(["--env", "FRAMESEARCH_REAL_FOOTAGE_DIR=/work/.cache/real-footage"])
         command.extend(
             [
-                TEST_IMAGE,
+                API_TEST_IMAGE if arguments.api else TEST_IMAGE,
                 "sh",
                 "-c",
                 waits

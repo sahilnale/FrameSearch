@@ -1,0 +1,32 @@
+{
+  "api_source_commit": "66faaf4",
+  "command": "python services/processor/tests/run_kafka_tests.py --indexing --api --skip-build",
+  "committed_offset": 3,
+  "dataset": "framesearch-commons-real-v1",
+  "duplicate_complete_extra_jobs": 0,
+  "duration_seconds": 9.16,
+  "evaluated_on": "2026-10-07",
+  "frame_vectors": "512 finite L2-normalized values using the frozen real checkpoint",
+  "frames": 18,
+  "job_claims_per_upload": 1,
+  "jobs_completed": 3,
+  "model_loads": 1,
+  "playback_range_status": 206,
+  "processor_lifecycle_commit": "0927c2f",
+  "queued_before_processor_start": true,
+  "ready_and_completed_states": "verified",
+  "resource_cleanup": "test-owned rows/bucket/objects/topic/group/processes/containers/network removed",
+  "scope": "Actual public Go HTTP routes and packaged processor in a disposable internal Docker network; no browser or shared Compose startup claim",
+  "search_and_signed_reads": "passed",
+  "signed_url_expiry_seconds": 900,
+  "timestamps_ms": [
+    0,
+    3000,
+    6000,
+    9000,
+    12000,
+    15000
+  ],
+  "unsigned_reads_status": 403,
+  "uploads": 3
+}
