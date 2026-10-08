@@ -55,7 +55,7 @@ func TestInfrastructureUploadAndPublication(t *testing.T) {
 		t.Fatal(e)
 	}
 	// Search is not invoked; this dependency is irrelevant to this test.
-	a := &API{store, storage, publisher, &testEmbedder{}, "http://localhost:3000"}
+	a := &API{store, storage, publisher, &testEmbedder{}, env("TEST_WEB_ORIGIN", "http://localhost:3000")}
 	server := httptest.NewServer(a.Handler())
 	defer server.Close()
 	client := &http.Client{Timeout: 10 * time.Second}

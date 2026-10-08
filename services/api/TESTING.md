@@ -51,3 +51,7 @@ test topic first and set `TEST_KAFKA_TOPIC` if using a different dedicated name;
 the test defaults to `media.uploaded.api-tests`. Do not point it at the worker's
 topic: its job rows live in temporary schemas and are removed after the test,
 so the worker cannot resolve those retained Kafka events.
+
+Compose passes the configured `WEB_ORIGIN` as `TEST_WEB_ORIGIN` for the real
+MinIO CORS check. Set `TEST_WEB_ORIGIN` when testing a host stack whose browser
+origin differs from `http://localhost:3000`.
