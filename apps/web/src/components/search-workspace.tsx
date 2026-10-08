@@ -97,6 +97,29 @@ export function SearchExperience({
             <p>
               Describe what you’re looking for and jump to the matching frame.
             </p>
+            {!submitted && (
+              <div
+                className="search-examples"
+                aria-label="Example descriptions"
+              >
+                {[
+                  { label: "Dogs playing", query: "A dog playing" },
+                  { label: "City at night", query: "A busy city at night" },
+                  { label: "Ocean waves", query: "Waves on a beach" },
+                ].map((example) => (
+                  <button
+                    key={example.query}
+                    type="button"
+                    onClick={() => {
+                      setQuery(example.query);
+                      input.current?.focus();
+                    }}
+                  >
+                    {example.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </section>
         <form
@@ -121,7 +144,12 @@ export function SearchExperience({
               maxLength={500}
               onChange={(event) => setQuery(event.target.value)}
             />
-            <button type="submit" className="button" disabled={!query.trim()}>
+            <button
+              type="submit"
+              className="button"
+              aria-label="Search"
+              disabled={!query.trim()}
+            >
               {loading ? <span className="spinner" /> : null}
               <span>Search</span>
               <ArrowRight size={16} />

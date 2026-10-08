@@ -13,8 +13,9 @@ export default function LibraryPage() {
   const [selected, setSelected] = useState<Video | null>(null);
   return (
     <div className="page-content">
-      <section className="intro">
+      <section className="intro library-intro">
         <div>
+          <div className="library-label">Your collection</div>
           <h1>Video library</h1>
           <p>Upload videos, watch them, and search their frames.</p>
         </div>

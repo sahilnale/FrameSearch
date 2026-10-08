@@ -91,3 +91,21 @@ Work proceeds in review milestones at the user's request. Stop after each milest
 
 The preceding milestones are historical checkpoints, including their then-current
 missing-component statements. The latest integration state is milestone 4 above.
+
+## 5. User-requested visual refresh — verified; awaiting review
+
+- The user explicitly requested frontend changes and selected cobalt, mint and
+  warm white. This authorizes the otherwise Developer 2-owned UI edits here.
+- Added a restrained cobalt search area, mint navigation/status accents, warmer
+  surfaces, cleaner video/result cards, and compact suggested-query controls.
+- Checked the production UI with three genuine licensed Commons clips indexed
+  through the public API. Suggested dog search returned the puppy first; selecting
+  its 12-second result opened actual 18-second playback at that timestamp, with
+  loaded media and no video error.
+- Search and library layouts checked at desktop, 390px and 320px; no horizontal
+  overflow. Reduced-motion and keyboard-focus styles remain in place.
+- All 28 existing frontend tests, typecheck, lint, changed-file formatting and
+  production Docker build passed. No processor or fixture-tool code was edited.
+- Screenshots are local review artifacts, not bundled application assets.
+- Saved on `ui-color-and-layout-refresh`, based on the separate backend
+  integration branch. Pause for user review before merging either branch.
