@@ -9,7 +9,9 @@ the shared schema, including transactional success and failure finalization.
 These stages are connected by a real video indexing operation with bounded
 single-job retries and durable terminal outcomes. The service launches the serial
 Kafka ingestion loop and shares one loaded model with its text HTTP endpoint.
-The full public Go API smoke test and frontend remain pending.
+The complete live processor suite and a tiny labeled synthetic search check
+pass. The public Go API smoke test and frontend remain pending. See
+`VERIFICATION.md` for exact results and remaining scope.
 
 ## Install and test the embedding core
 
@@ -751,7 +753,35 @@ The API image must already be built; shared `RECONCILE_STALE_AFTER` defaults to
 15 minutes. This recovery republishes valid queued/stale jobs; malformed Kafka
 records require investigation and explicit resolution. There is no claim lease,
 DLQ, or atomic database/Kafka transaction. Public Go upload/search/playback smoke
-and semantic evaluation still need their own checkpoint.
+still needs its own checkpoint. Synthetic relevance results are recorded below.
+
+## Generated data and labeled search check
+
+`scripts/create_demo_clips.py` produces three original 6.2-second MP4 clips:
+red circle, blue square, and green triangle. The five human-readable expected
+matches in `scripts/visual-search-labels.json` were committed before inference.
+See `scripts/README.md` for host/Docker generation commands and use the resulting
+MP4s for the later upload demo.
+
+From the repository root, with the current processor/test images and genuine
+weights cached:
+
+```sh
+python services/processor/tests/run_kafka_tests.py --indexing --semantic --skip-build
+```
+
+This executes only the labeled check and prints the measured JSON results. It
+generates fresh clips, seeds test-owned queued jobs, and runs real packaged HTTP,
+Kafka, private MinIO, FFmpeg, CLIP, and pgvector. The public Go API is excluded.
+All nine frames are ready before genuine HTTP text vectors rank them by exact
+cosine distance. Test resources are removed afterward.
+
+**One live evaluation test passed, no skips** (10.66 seconds). All five queries
+ranked the expected clip first: top-1 video accuracy **5/5**, Recall@5 **5/5**
+(expected clip among the top five frame results). Observations and raw cosine
+scores are in `evaluations/generated-shapes-v1.json`. This tiny synthetic set
+does not measure relevance on real footage or changing scenes. The evaluator
+records semantic misses honestly rather than requiring a perfect score to pass.
 
 ## Integration notes for Developer 1
 
@@ -764,7 +794,8 @@ python services/processor/tests/run_kafka_tests.py --indexing --full --skip-buil
 ```
 
 All live dependency flags are enabled, including real media and model checks.
-The complete suite passed **506 tests with zero skips** (47.94 seconds). See
+The complete suite at `02a95cc` passed **506 tests with zero skips** (47.94 seconds).
+The separately executed labeled check adds one more test to future full runs. See
 `VERIFICATION.md` for the tested behavior and remaining integration boundaries.
 
 The frozen model version and all shared contracts are unchanged. No Go, schema,

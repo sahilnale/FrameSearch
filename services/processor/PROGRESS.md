@@ -30,8 +30,10 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | Kafka consumer with manual offset commits | Implemented, verified, pushed | Commit `ed6e68e`; 32 adapter checks and three real Kafka 3.9 redelivery/offset/topic checks; 134 focused checks pass |
 | Serial Kafka-to-job ingestion loop | Implemented, verified, pushed | Commit `f0f3e44`; 17 loop checks and five actual Kafka-to-CLIP/MinIO/PostgreSQL checks; 156 focused checks pass |
 | Shared HTTP/worker lifecycle | Implemented, verified, pushed | Commit `0927c2f`; 12 lifecycle checks and two actual packaged Uvicorn socket checks; 186 focused checks pass |
-| Complete processor/AI regression | Verified | 506 passed, zero skips; all live media/model/storage/database/Kafka/HTTP checks enabled |
-| Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
+| Complete processor/AI regression | Verified, pushed | Commit `02a95cc`; 506 passed, zero skips; all live media/model/storage/database/Kafka/HTTP checks enabled |
+| Original labeled demo clips | Implemented, verified, pushed | Commit `4f5738f`; three real H.264 clips validate and sample at 0/3000/6000 ms; five prewritten labels |
+| Tiny synthetic semantic evaluation | Verified | Real packaged service indexes nine frames; all five queries rank the expected clip first; Recall@5 5/5 |
+| Public Go end-to-end smoke | Deferred by user | Public upload/retry/search/playback and shared Compose remain unverified |
 
 This file is Developer 2-owned. Developer 1 maintains the root progress document.
 Only successfully executed checks will be marked verified here.
@@ -486,9 +488,14 @@ passed **506 tests, zero skips** (47.94 seconds). Unit doubles are confined to t
 cases; all genuine FFmpeg/CLIP/MinIO/PostgreSQL/Kafka/packaged HTTP integration
 checks ran successfully. Disposable resources were removed. The full-mode helper
 requires `--indexing` so missing live dependencies are not silently skipped.
-Details and scope boundaries are recorded in `VERIFICATION.md`. A tiny labeled
-visual-search relevance check follows separately; structural passes do not
-establish semantic quality.
+Details and scope boundaries are recorded in `VERIFICATION.md`. The separate
+labeled visual-search check passed in **10.66 seconds**, using genuine packaged
+HTTP/Kafka/MinIO/FFmpeg/CLIP/PostgreSQL and the five labels committed beforehand.
+Top-1 video accuracy and Recall@5 are both **5/5** across three generated shape
+clips/nine frames. Results are in `evaluations/generated-shapes-v1.json`; this
+does not establish accuracy on real footage. Test-owned resources were removed.
+Host regression: **375 passed, 132 skipped** (6.60 seconds); all live components
+were explicitly enabled for the separate full regression and semantic runs.
 
 1. Real backend/processor end-to-end smoke test using the shared infrastructure.
 2. Frontend upload, search, and playback, after the backend integration works.

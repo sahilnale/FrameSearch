@@ -28,3 +28,14 @@ docker run --rm --user "$(id -u):$(id -g)" \
 
 The output contains MP4s, their PNG previews, and a copy of the query labels.
 Use these same MP4 files for a later public upload/search/playback smoke test.
+
+Run their real processor-only relevance evaluation from the repo root after
+building the processor test image and caching the genuine model:
+
+```sh
+python services/processor/tests/run_kafka_tests.py --indexing --semantic --skip-build
+```
+
+Recorded observations are in
+`services/processor/evaluations/generated-shapes-v1.json`; the full scope is
+explained in `services/processor/VERIFICATION.md`.

@@ -33,7 +33,7 @@ explicit = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = [".", "../../scripts"]
 markers = [
     "real_model: loads the real checkpoint; enable with FRAMESEARCH_REAL_MODEL_TEST=1",
     "minio: exercises a live MinIO instance; enable with FRAMESEARCH_MINIO_TEST=1",
