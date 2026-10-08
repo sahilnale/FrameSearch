@@ -200,8 +200,33 @@ services:
       timeout: 6s
       retries: 20
     restart: unless-stopped
+  api-tests:
+    profiles: [tests]
+    image: golang:1.24.7-alpine
+    working_dir: /workspace/services/api
+    command: ["go", "test", "-count=1", "./..."]
+    environment:
+      TEST_DATABASE_URL: postgres://${POSTGRES_USER:-framesearch}:${POSTGRES_PASSWORD:-framesearch}@postgres:5432/${POSTGRES_DB:-framesearch}?sslmode=disable
+      TEST_KAFKA_BROKERS: kafka:29092
+      TEST_KAFKA_TOPIC: ${KAFKA_TOPIC:-media.uploaded}
+      TEST_S3_ENDPOINT: http://minio:9000
+      TEST_S3_ACCESS_KEY: ${S3_ACCESS_KEY:-framesearch}
+      TEST_S3_SECRET_KEY: ${S3_SECRET_KEY:-framesearch-local-secret}
+    volumes:
+      - ../:/workspace:ro
+      - go-modules:/go/pkg/mod
+      - go-test-cache:/root/.cache/go-build
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
 volumes:
   postgres-data:
   kafka-data:
   minio-data:
   model-cache:
+  go-modules:
+  go-test-cache:
