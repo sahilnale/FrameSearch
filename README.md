@@ -1,10 +1,42 @@
 # FrameSearch
 
-FrameSearch searches visible video frames with natural-language queries. Developer
-1's Go backend, database schema, and local infrastructure are implemented.
-Developer 2's Python processor, Next.js UI, media fixtures, and smoke tooling are
-not in this branch yet. Real video indexing, CLIP inference, semantic search,
-and browser playback are not yet validated end to end.
+FrameSearch searches visible video frames with natural-language queries. The Go
+API, PostgreSQL/pgvector schema, Kafka ingestion worker, real CPU OpenCLIP model,
+private MinIO storage, and Next.js frontend are implemented and integrated.
+See `docs/integration-verification.md` for the shared-stack checks and their scope,
+and the processor/frontend `VERIFICATION.md` files for detailed evaluation results.
+
+## Start the complete application
+
+Requires a running Docker engine and Docker Compose with profiles/build support.
+Ports bind to localhost; this app has no authentication and is for local use.
+
+```sh
+cp .env.example .env
+make config
+make up
+# In another terminal, after the model and worker are ready:
+curl --fail http://localhost:8080/health/ready
+make smoke
+```
+
+Open `http://localhost:3000`. The first processor startup downloads the genuine
+OpenCLIP checkpoint; subsequent starts reuse the `model-cache` volume. Startup
+can take several minutes. `make up` streams service logs and keeps running.
+Do not run the recovery smoke against a library you are actively using:
+`make smoke-recovery` deliberately stops the sole worker and interrupts a new
+test upload to verify stale-job recovery. Both smoke commands retain their test
+videos for inspection. They require host Python 3 with the standard library only.
+
+`make smoke` generates an original 6.2-second MP4 with the processor's FFmpeg,
+uploads it through the public API, waits for indexing, and checks filtered search,
+private JPEG thumbnails, signed MP4 bytes, HTTP byte ranges, and URL expiration.
+It checks functionality, not semantic relevance on a representative dataset.
+To use your own small valid MP4:
+
+```sh
+make smoke SMOKE_ARGS='--video /absolute/path/clip.mp4 --query "a person walking"'
+```
 
 ## Start the backend
 
@@ -42,7 +74,8 @@ or embeddings are provided.
 
 ## Test
 
-With Go 1.24+ installed:
+With Go 1.24+, Python 3.12, and uv installed (the processor lockfile was generated
+with uv 0.6.3):
 
 ```sh
 make test
@@ -60,28 +93,20 @@ with synthetic vectors, browser CORS, real signed object PUT/GET, private access
 byte ranges, repeated completion, and actual Kafka event publication. The object
 payload in the infrastructure test is opaque fixture data; the test does not
 claim video decoding, worker consumption, or semantic relevance. Test schemas,
-buckets and objects are cleaned up. Test events remain in Kafka and contain job
-IDs that will not exist in the application's public schema.
+buckets and objects are cleaned up. Fixture events remain in the separate
+`media.uploaded.api-tests` topic, which the application worker does not consume.
+Use a dedicated `TEST_KAFKA_TOPIC` when running host-based infrastructure tests.
 
 Without the TEST_DATABASE_URL and other TEST_* variables, the corresponding
 integration tests explicitly skip in local `go test`. See
 `services/api/TESTING.md` and `docs/progress.md` for exact scope and results.
 
-## Start the complete application after Developer 2 integrates
-
-Developer 2 must supply Dockerfiles with build contexts `services/processor` and
-`apps/web`, plus `scripts/smoke.py` for the root smoke target.
-
-```sh
-make up
-# In another terminal, after the processor is ready:
-make smoke
-```
+## Model and service configuration
 
 The web service uses port 3000 and the public API base
 `NEXT_PUBLIC_API_URL=http://localhost:8080`. The processor listens internally on
-port 8000 and is not published to the host. It must implement `/health/ready` and
-`/embed/text`, consume the frozen Kafka envelope, and write the shared schema.
+port 8000 and is not published to the host. It implements `/health/ready` and
+`/embed/text`, consumes the frozen Kafka envelope, and writes the shared schema.
 
 Use `MODEL_NAME=ViT-B-32`, `MODEL_PRETRAINED=laion2b_s34b_b79k`, and stored
 model_version `ViT-B-32:laion2b_s34b_b79k`. CPU operation is required. First startup

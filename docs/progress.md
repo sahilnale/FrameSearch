@@ -12,7 +12,7 @@ Work proceeds in review milestones at the user's request. Stop after each milest
 - Initial Go compilation passed; no runtime services were tested at that checkpoint.
 - User approved moving to API tests.
 
-## 2. API tests — implemented and verified; awaiting review
+## 2. API tests — implemented, verified, reviewed
 
 - Table-driven upload, search, embedding, and legal-transition validation.
 - HTTP contracts, concurrent/repeat complete, failed retry, object verification,
@@ -35,7 +35,7 @@ Work proceeds in review milestones at the user's request. Stop after each milest
 - At this earlier checkpoint Docker was absent; milestone 3 below resolves that
   blocker and executes these database/infrastructure tests.
 
-## 3. Infrastructure — implemented and verified; awaiting review
+## 3. Infrastructure — implemented, verified, reviewed and merged
 
 - Docker Desktop installed; verified the Linux ARM64 engine and Compose.
 - PostgreSQL/pgvector and Kafka are healthy with persisted data and loopback ports.
@@ -64,15 +64,30 @@ Work proceeds in review milestones at the user's request. Stop after each milest
 - Work is isolated on `backend-infrastructure`; each feature is committed
   separately and pushed for review. Main's implementation is preserved.
 
-## 4. Integration — planned, blocked on Developer 2 components
+## 4. Shared-stack integration — verified; awaiting review
 
-- Developer 2's processor, frontend and smoke scripts are not present.
-- No real video decoding, embeddings, Kafka consumption, semantic evaluation,
-  browser upload/playback, or full smoke test has run.
-- Do not claim end-to-end functionality until these checks pass.
+- Developer 2's processor, frontend and fixture/evaluation tools are merged on
+  main at `bc09d0d`; no Developer 2-owned files were edited in this milestone.
+- Replaced the missing root smoke entry point with `infra/smoke.py`. The genuine
+  Compose worker indexed a real generated MP4; public search, private thumbnails,
+  exact playback bytes, 206 ranges and 900-second URL expiry passed.
+- Added `make smoke-recovery`: a corrupt public upload failed, its source was
+  repaired through the signed PUT URL, and public retry indexed it successfully.
+- Interrupted a real claimed 179.9-second video, aged only its job timestamp to
+  exercise the 15-minute stale threshold, and reconciled it. The same job completed
+  after exactly two claims with 60 unique frames; duplicate events drained safely.
+- Recreated the full Compose stack with named volumes retained. All three ready
+  videos and 66 normalized, 512-dimensional frames remained usable. The genuine
+  model loaded from its retained cache with Hugging Face offline mode enabled.
+- Corrected `make test` to use `uv run --frozen pytest`. Executed the root target
+  with container-backed Go/uv wrappers: Go passed; processor 400 passed, 108
+  explicitly gated live/model tests skipped. Real services were checked separately.
+- Separated backend fixture events into a test-only Kafka topic so deleted test
+  schemas cannot leave unresolved events for the application worker.
+- Updated root startup/testing documentation. See `integration-verification.md`
+  for measured results, reproduction commands and remaining limits.
+- Each feature is committed separately and pushed on
+  `backend-integration-verification`. Stop here for user review before merging.
 
-No changes to Developer 2-owned directories. The user requested incremental
-commits and pushes at review milestones. Milestone 2 is being saved as shared
-contract/schema and backend/tests commits; consult git log for commit identities.
-The user subsequently approved continuing infrastructure. Stop after milestone
-3 for review before integrating Developer 2 components.
+The preceding milestones are historical checkpoints, including their then-current
+missing-component statements. The latest integration state is milestone 4 above.
