@@ -21,7 +21,8 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | Atomic PostgreSQL job claiming | Implemented, verified, pushed | Commit `aa9a6a5`; 56 focused checks pass, including concurrent claims, lock order, duplicate handling, and rollback |
 | Idempotent frame upserts | Implemented, verified, pushed | Commit `c6bc88b`; 100 focused checks pass, including real MinIO/FFmpeg/CLIP-to-pgvector persistence and retry checks |
 | Transactional ready/completed states | Implemented, verified, pushed | Commit `a6b8913`; 133 focused checks pass, including missing frame rejection and rollback of both states/duration/pruning |
-| Transactional failed states | Implemented, verified | 151 focused checks pass, including failure rollback, retry completion, and protection of newer jobs |
+| Transactional failed states | Implemented, verified, pushed | Commit `74c4de1`; 151 focused checks pass, including failure rollback, retry completion, and protection of newer jobs |
+| Connected real video indexing operation | Implemented, verified | 154 focused live checks pass, including actual ready indexing, interrupted upload recovery, and corrupt MP4 rejection |
 | Kafka consumption, bounded retries and recovery | Planned | Not run |
 | Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
 
@@ -292,9 +293,29 @@ Only successfully executed checks will be marked verified here.
   network, private bucket, and owned rows/triggers/functions. No shared migration,
   Go, infrastructure, or unrelated service changed.
 
+## Connected video indexing checkpoint
+
+- Added `VideoIndexer.index` to connect download, actual MP4 validation/decoding,
+  shared model inference, successful thumbnail PUTs, frame upserts, and completion.
+  Caller supplies the claimed job and already-loaded model, and owns failure/
+  retry policy. Blocking work stays outside database locks; context managers clean
+  temporary files on success/error. No Kafka or HTTP lifecycle changes yet.
+- Three actual integration checks pass: generated MP4 becomes ready with three
+  genuine vectors/thumbnails and actual ready-only text-vector SQL results; an
+  interrupted second thumbnail upload leaves processing/no rows/clean temp files,
+  then retries to ready with only three objects; corrupt MP4 rejection is followed
+  by explicit caller-recorded failed state. This is not a relevance evaluation.
+- Focused live suite: **154 passed, no skips** (10.09 seconds). Host regression:
+  **211 passed, 118 skipped** (3.42 seconds). Production/dev images build, packaged
+  indexer import and DB checks pass as UID 10001, Ruff/formatting/whitespace pass,
+  and disposable test resources are removed. No unrelated project was started.
+- Fetched new main `7f9308f`, which adds Developer 1's backend infrastructure.
+  Shared schema/Go contracts remain unchanged. Sync follows this feature commit;
+  processor cache compatibility and Kafka wiring are separate checkpoints.
+
 ## Remaining sequence
 
-1. Connect media/storage/model/database stages into a single indexing operation.
+1. Match the processor model cache to the shared Compose volume.
 2. Kafka consumption, bounded retries, offset handling, and service lifecycle.
 3. Real backend/processor end-to-end smoke test using the shared infrastructure.
 4. Frontend upload, search, and playback, after the backend integration works.
