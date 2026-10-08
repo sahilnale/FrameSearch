@@ -30,14 +30,14 @@ These design decisions combine that preference with the patterns below.
 
 ## Visual and interaction rules
 
-Use white panels on `#f6f7fa`, ink `#202635`, secondary text `#5a6578`, and blue
+Use white panels on `#f4f5f8`, ink `#202635`, secondary text `#5a6578`, and blue
 `#3156d3` for actions and selection. Green, amber and red distinguish processing
 states with accompanying text. Footage retains its original colors. Navigation
 contains Search and Library, with one upload entry point per view.
 
 Use a compact top navigation instead of a permanent sidebar. Keep filenames and
 result timestamps readable; supporting labels are generally 12–14px and the search
-input is 18px on desktop and 16px on phones. Mobile layouts rearrange controls without hiding the two destinations.
+input is 16px. Mobile layouts rearrange controls without hiding the two destinations.
 The player retains native controls, focus restoration and signed-link recovery.
 
 Ready Library rows have one play target covering the file icon and filename,
@@ -53,16 +53,21 @@ query suggestions. Never fabricate previews or infer a video's contents from its
 
 ## Footage and visual character
 
-The light palette stays, with a solid blue scan mark, underlined navigation,
-stronger Manrope headings, tighter corner radii and a small visual-search label.
-These details make the workspace recognizable without adding promotional panels.
+The light palette stays, with a solid blue scan mark and underlined navigation.
+The search screen now uses an editorial composition: oversized Manrope type on
+the left, a blue query panel on the right, and a large footage preview beside two
+smaller ones. One or two available previews use simpler layouts; phones stack
+them. Results use a compact search header, large frames and filename rows instead
+of enclosing every item in a white card. The layout uses actual library content.
 
-When ready videos exist, the start screen shows up to three actual paused video
+When ready videos exist, the start screen shows up to three actual video
 previews instead of an empty search placeholder. Each requests its signed original
-through the existing playback API, uses metadata preload and seeks to 0.1 seconds
-to decode a frame. Browser preload is a hint; transferred bytes depend on the
-browser and storage server. Nothing autoplays, and requests abort when the shelf
-unmounts. Ticket/media failures or a 15-second media timeout show an honest fallback
+through the existing playback API, uses metadata preload and seeks to the clip's
+midpoint to decode a still. Hover plays it muted when the device supports hover and
+reduced motion is off; leaving pauses and returns to the midpoint. The initial
+screen remains paused. Browser preload is a hint; transferred bytes depend on the
+browser and storage server. Requests abort when the shelf unmounts. Ticket/media
+failures or a 15-second media timeout show an honest fallback
 without disabling source selection. Selecting a source preserves the query and
 focuses the input; selecting it again returns to all videos. No extra backend
 endpoint, stored poster or filename-based imagery is introduced.
@@ -79,5 +84,7 @@ endpoint, stored poster or filename-based imagery is introduced.
 8. `c7f0b43`: keep the library action on one line on phones.
 9. `b6e4350`: shared whole-video/search player with zero-playhead recovery.
 10. `431d015`: direct library playback and integration coverage.
+11. `645320d`: editorial search composition, blue query panel and asymmetric footage.
+12. `0651203`: midpoint stills and muted hover previews that respect reduced motion.
 
 See [VERIFICATION.md](VERIFICATION.md) for the executed checks and their scope.
