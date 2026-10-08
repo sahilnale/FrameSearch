@@ -3,10 +3,10 @@
 Developer 2's processor implementation, following master specification section 13.
 This checkpoint contains the real CPU OpenCLIP embedding core, internal text
 HTTP service, FFprobe upload validation, timestamped FFmpeg frame extraction,
-and private source/thumbnail transfers through MinIO's S3 API. Kafka consumption
-and database transitions are subsequent features. The PostgreSQL connection
-layer is verified against the shared schema. These components are not yet
-connected to an ingestion worker.
+and private source/thumbnail transfers through MinIO's S3 API. PostgreSQL
+connections and atomic job claims are verified against the shared schema.
+Frame persistence, final state transitions, and Kafka consumption are subsequent
+features. These components are not yet connected to an ingestion worker.
 
 ## Install and test the embedding core
 
@@ -342,8 +342,9 @@ lock timeout. The application name is `framesearch-processor`.
 
 `Database.check_schema()` checks connectivity, the three canonical `public`
 tables, and the installed `vector` extension. It does not run or modify the
-shared migration. Database failures raise `DatabaseError`; this checkpoint does
-not yet wire that check into HTTP readiness or implement job/frame writes.
+shared migration. Database failures raise `DatabaseError`; the check is not yet
+wired into HTTP readiness. Atomic claims are described below; frame persistence
+and final state transitions remain unimplemented.
 
 ```python
 from framesearch_processor.database import Database
@@ -378,6 +379,50 @@ application rows. These checks are separate from full indexing or Go integration
 
 Database work is split into individual checkpoints: connection/configuration,
 atomic job claiming, idempotent frame upserts, and ready/failed transactions.
+
+## Atomic job claiming
+
+`Database.claim_job(job_id, video_id)` accepts two UUIDs from the validated event.
+It locks the video first, matching Go's lock order, then locks only the job that
+belongs to that video. A guarded update claims a queued job and increments its
+`attempt_count`; the video moves to `processing` in the same transaction. Old
+error fields are cleared. The result reaches the caller only after commit.
+
+| Result outcome | Meaning |
+| --- | --- |
+| `claimed` | Contains a `ClaimedJob` with job/video IDs, original object key, declared byte size, and attempt count |
+| `busy` | The job and video are already processing; this is not a terminal result |
+| `terminal` | The job is completed or failed; no state is changed |
+| `missing` | The video/job is absent or the job belongs to another video; no state is changed |
+
+Inconsistent job/video states raise `JobStateError`. Terminal old failed jobs
+remain terminal after Go creates a new retry job; delayed old events leave that
+new job untouched. Duplicates do not increment attempts or modify timestamps.
+Database errors or a rejected/suppressed video update roll back the entire claim.
+
+This is a row-locked claim, not a lease. Stale recovery still requires stopping
+the sole processor before Go resets an existing processing job to queued. No
+Kafka offsets are handled by this component, and `busy`/`missing` outcomes must
+not be treated as durable terminal transitions by the later worker.
+
+With the disposable test database and environment described above:
+
+```sh
+FRAMESEARCH_DATABASE_TEST=1 uv run --frozen pytest -q tests/test_database.py tests/test_job_claims.py
+```
+
+The new claim suite has 34 checks: 32 against actual PostgreSQL and two UUID input
+guards. Together with connection/configuration regression checks, **56 passed,
+no skips** (0.84 seconds) on Linux ARM64. Tests verify concurrent claims, video
+before job lock order, duplicate and delayed events, all job/video status pairs,
+reclaimed jobs, and rollback after actual database-trigger failures. Test rows
+and uniquely named triggers/functions are cleaned up; use only a disposable
+database. The unchanged shared migration is used directly.
+
+The packaged production image also passed a real claim/duplicate check as UID
+10001 without mounting source code. The host suite passed **159 tests with 72
+skips** (6.52 seconds); live database/media/model checks require their opt-in
+environments. Full Kafka-to-indexing integration remains pending.
 
 ## Integration notes for Developer 1
 
