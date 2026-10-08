@@ -22,7 +22,8 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | Idempotent frame upserts | Implemented, verified, pushed | Commit `c6bc88b`; 100 focused checks pass, including real MinIO/FFmpeg/CLIP-to-pgvector persistence and retry checks |
 | Transactional ready/completed states | Implemented, verified, pushed | Commit `a6b8913`; 133 focused checks pass, including missing frame rejection and rollback of both states/duration/pruning |
 | Transactional failed states | Implemented, verified, pushed | Commit `74c4de1`; 151 focused checks pass, including failure rollback, retry completion, and protection of newer jobs |
-| Connected real video indexing operation | Implemented, verified | 154 focused live checks pass, including actual ready indexing, interrupted upload recovery, and corrupt MP4 rejection |
+| Connected real video indexing operation | Implemented, verified, pushed | Commit `27bd084`; 154 focused live checks pass, including actual ready indexing, interrupted upload recovery, and corrupt MP4 rejection |
+| Frozen Kafka event envelope validation | Implemented, verified | 41 focused checks pass; no broker consumption or acknowledgment yet |
 | Kafka consumption, bounded retries and recovery | Planned | Not run |
 | Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
 
@@ -312,6 +313,21 @@ Only successfully executed checks will be marked verified here.
 - Fetched new main `7f9308f`, which adds Developer 1's backend infrastructure.
   Shared schema/Go contracts remain unchanged. Sync follows this feature commit;
   processor cache compatibility and Kafka wiring are separate checkpoints.
+
+## Kafka envelope validation checkpoint
+
+- Added a pure parser for the exact frozen JSON envelope and keyed video UUID.
+  Returns UUIDs and UTC datetime; validates type/version/fields/timestamp/key,
+  rejects duplicate fields and malformed/nonobject/oversize/tombstone payloads.
+  Supports Go's RFC3339 nanosecond timestamps. No raw payloads in error messages.
+- **41 focused tests passed** (0.02 seconds). Ruff and formatting pass. No new
+  dependencies, database writes, broker operations, or acknowledgment behavior.
+  Malformed events cannot safely identify a job; consumer handling comes next.
+- Main's infrastructure was synced without conflicts at merge `5637745` and
+  pushed. The model-cache compatibility work is separate. Its image built, but
+  Docker shut down with a no-space-left-on-device error before live cache checks;
+  container/Kafka verification awaits more host disk space. Existing checkpoint
+  weights remain intact and unrelated projects have not been started.
 
 ## Remaining sequence
 
