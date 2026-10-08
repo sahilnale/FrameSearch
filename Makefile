@@ -6,7 +6,7 @@ SMOKE_ARGS ?=
 ENV_FILE := $(if $(wildcard .env),.env,.env.example)
 COMPOSE = $(DOCKER) compose --env-file $(ENV_FILE) -f infra/docker-compose.yml
 
-.PHONY: up backend down logs test test-infra smoke reconcile reconcile-stale migrate config check-app
+.PHONY: up backend down logs test test-infra smoke smoke-recovery reconcile reconcile-stale migrate config check-app
 
 up: check-app
 	$(COMPOSE) --profile app up --build
@@ -29,6 +29,9 @@ test-infra:
 
 smoke: check-app
 	FRAMESEARCH_COMPOSE_COMMAND='$(COMPOSE) --profile app' $(PYTHON) infra/smoke.py --api-url '$(API_URL)' $(SMOKE_ARGS)
+
+smoke-recovery: check-app
+	FRAMESEARCH_COMPOSE_COMMAND='$(COMPOSE) --profile app' $(PYTHON) infra/recovery_smoke.py --api-url '$(API_URL)' --allow-worker-stop $(SMOKE_ARGS)
 
 reconcile:
 	$(COMPOSE) run --rm --no-deps api --reconcile
