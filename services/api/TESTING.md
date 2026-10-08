@@ -30,8 +30,8 @@ They verify migration reruns, concurrent enqueueing, failed-video retry, the
 partial unique index, ready/model/video search filters, cosine ordering and
 similarities, and queued/stale reconciliation without extra jobs.
 
-Full S3/Kafka/processor integration and real video smoke tests remain a separate
-milestone. The DB tests use synthetic vectors and a test publisher; they do not
+Real processor/video integration is covered separately by `make smoke` and
+`docs/integration-verification.md`. The DB tests use synthetic vectors and a test publisher; they do not
 claim real ingestion or Kafka delivery.
 
 ## Real storage and Kafka publication
@@ -43,3 +43,11 @@ TEST_S3_ACCESS_KEY/TEST_S3_SECRET_KEY (local demo defaults) for local go test.
 The test verifies actual CORS, signed PUT, queued job creation, duplicate complete,
 Kafka key/envelope, byte-range GET, and anonymous access rejection. The payload
 is opaque fixture bytes; this does not prove video decoding or CLIP relevance.
+
+Compose initializes and uses `${KAFKA_TOPIC}.api-tests` (by default
+`media.uploaded.api-tests`) for these fixture events. The real worker consumes
+only the application topic. For host-based integration tests, initialize the
+test topic first and set `TEST_KAFKA_TOPIC` if using a different dedicated name;
+the test defaults to `media.uploaded.api-tests`. Do not point it at the worker's
+topic: its job rows live in temporary schemas and are removed after the test,
+so the worker cannot resolve those retained Kafka events.

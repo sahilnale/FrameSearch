@@ -49,7 +49,7 @@ func TestInfrastructureUploadAndPublication(t *testing.T) {
 			t.Error(e)
 		}
 	})
-	publisher := newPublisher(brokers, env("TEST_KAFKA_TOPIC", "media.uploaded"))
+	publisher := newPublisher(brokers, env("TEST_KAFKA_TOPIC", "media.uploaded.api-tests"))
 	defer publisher.writer.Close()
 	if e := publisher.Ping(ctx); e != nil {
 		t.Fatal(e)
