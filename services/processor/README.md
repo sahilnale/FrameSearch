@@ -634,6 +634,39 @@ constructing a native client. All **34 Kafka configuration checks pass**, with
 2.15.1 consumer constructs and closes successfully on macOS ARM64. This checkpoint
 does not subscribe, consume, acknowledge, or change the HTTP lifecycle.
 
+## Manual Kafka offsets
+
+`UploadConsumer(KafkaSettings.from_env())` checks existing topic/partition metadata
+before subscribing. It uses the classic consumer protocol for Kafka 3.9, earliest
+offsets for a new group, a one-hour maximum interval between polls for CPU indexing,
+and a bounded prefetch queue. Automatic topic creation, offset storage, and offset
+commits are disabled. Use the adapter from one worker thread.
+
+`poll()` waits at most one second and returns one pending message. Another poll
+is rejected until `acknowledge(message)` confirms a synchronous commit of that
+exact message's next offset, including the returned partition/error/offset.
+The caller must first confirm durable completed/failed state through `JobProcessor`.
+Commit errors leave the event pending. `close()` leaves the group without committing
+pending work. This checkpoint is not yet connected to the HTTP service or job loop.
+
+From the repo root, run a disposable real-broker check with no published ports:
+
+```sh
+python services/processor/tests/run_kafka_tests.py
+# Reuse the images after a successful current build:
+python services/processor/tests/run_kafka_tests.py --skip-build
+```
+
+The helper builds the production/dev images, starts Kafka 3.9.0 in an internal
+test network, runs checks, then removes its containers/network. Each real test
+creates and removes its own unique topic/group. **134 focused checks passed,
+no skips** (5.77 seconds), including three actual broker tests proving uncommitted
+redelivery, restart at the next committed offset, and no missing-topic creation.
+There are 32 new adapter unit checks for failure/ordering/close guards. Host suite:
+**346 passed, 124 skipped** (4.42 seconds). Actual production-image native client
+construction and genuine offline CLIP inference pass as UID 10001 without source
+mounts. No public API ingestion or semantic evaluation is claimed by these tests.
+
 ## Integration notes for Developer 1
 
 The frozen model version is unchanged. No Go, schema, infrastructure, shared docs,
