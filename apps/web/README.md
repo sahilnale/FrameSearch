@@ -32,7 +32,9 @@ npm run build
 - Search: actual Go results, per-video filters, signed thumbnails, true timestamps
   and raw cosine scores. New queries abort older requests; expired thumbnails have
   a refresh action. Query chips are descriptions to try, not recorded results.
-- Next: timestamp playback.
+- Playback: click a real result, request a signed original, wait for metadata,
+  seek to the timestamp, use native controls. Escape/background/close dismiss the
+  native modal and restore focus. Expired/unreadable URLs can be refreshed.
 
 Foundation checks: ESLint (zero warnings), TypeScript, and production build passed.
 The browser preview was inspected at its default compact size and 1440px desktop.
@@ -45,5 +47,9 @@ completion. Real browser ingestion will be checked against the genuine stack.
 Search checkpoint: six focused UI tests (upload plus search), lint, and production
 build passed. The race test checks that a slow previous query cannot replace a
 newer result. These unit fixtures are separate from the application's live data.
+
+Playback checkpoint: nine focused UI tests, lint, and production build passed.
+Metadata-gated seeking, fresh URL recovery, and invalid-timestamp errors are
+covered. Native decoding/seek and cross-origin storage will be verified live.
 
 Developer 1's infrastructure, API and schema remain unchanged.
