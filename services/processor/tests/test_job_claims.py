@@ -15,36 +15,6 @@ from framesearch_processor.settings import DatabaseSettings
 pytestmark = pytest.mark.database
 
 
-@pytest.fixture
-def queued_job(database):
-    video_id, job_id = uuid4(), uuid4()
-    object_key = f"videos/{video_id}/original.mp4"
-    with database.connection() as connection:
-        connection.execute(
-            """
-            INSERT INTO videos (id, filename, object_key, content_type, size_bytes, status,
-                                processing_error, updated_at)
-            VALUES (%s, 'claim-test.mp4', %s, 'video/mp4', 1234, 'queued',
-                    'old video error', '2000-01-01T00:00:00Z')
-            """,
-            (video_id, object_key),
-        )
-        connection.execute(
-            """
-            INSERT INTO processing_jobs
-                (id, video_id, status, attempt_count, last_error, updated_at)
-            VALUES (%s, %s, 'queued', 2, 'old job error', '2000-01-01T00:00:00Z')
-            """,
-            (job_id, video_id),
-        )
-    try:
-        yield video_id, job_id, object_key
-    finally:
-        with database.connection() as connection:
-            connection.execute("DELETE FROM processing_jobs WHERE video_id = %s", (video_id,))
-            connection.execute("DELETE FROM videos WHERE id = %s", (video_id,))
-
-
 def states(database, video_id, job_id):
     with database.connection() as connection:
         return connection.execute(

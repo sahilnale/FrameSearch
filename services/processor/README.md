@@ -4,8 +4,8 @@ Developer 2's processor implementation, following master specification section 1
 This checkpoint contains the real CPU OpenCLIP embedding core, internal text
 HTTP service, FFprobe upload validation, timestamped FFmpeg frame extraction,
 and private source/thumbnail transfers through MinIO's S3 API. PostgreSQL
-connections and atomic job claims are verified against the shared schema.
-Frame persistence, final state transitions, and Kafka consumption are subsequent
+connections, atomic job claims, and retry-safe frame writes are verified against
+the shared schema. Final state transitions and Kafka consumption are subsequent
 features. These components are not yet connected to an ingestion worker.
 
 ## Install and test the embedding core
@@ -343,8 +343,8 @@ lock timeout. The application name is `framesearch-processor`.
 `Database.check_schema()` checks connectivity, the three canonical `public`
 tables, and the installed `vector` extension. It does not run or modify the
 shared migration. Database failures raise `DatabaseError`; the check is not yet
-wired into HTTP readiness. Atomic claims are described below; frame persistence
-and final state transitions remain unimplemented.
+wired into HTTP readiness. Atomic claims and frame persistence are described
+below; final state transitions remain unimplemented.
 
 ```python
 from framesearch_processor.database import Database
@@ -423,6 +423,56 @@ The packaged production image also passed a real claim/duplicate check as UID
 10001 without mounting source code. The host suite passed **159 tests with 72
 skips** (6.52 seconds); live database/media/model checks require their opt-in
 environments. Full Kafka-to-indexing integration remains pending.
+
+## Idempotent frame persistence
+
+`Database.upsert_frames(claim, records)` writes 1–60 `FrameRecord` values in one
+transaction. The caller must upload each thumbnail successfully before passing
+its returned key and real embedding to the database:
+
+```python
+from framesearch_processor.database import FrameRecord
+
+# `claim` is the ClaimedJob returned by a successful claim_job call.
+# Keep media extraction, model inference, and storage requests outside DB locks.
+records = []
+for frame, vector in zip(clip.frames, vectors, strict=True):
+    key = store.upload_thumbnail(claim.video_id, frame, model.model_version)
+    records.append(FrameRecord(frame.timestamp_ms, key, vector, model.model_version))
+frame_ids = database.upsert_frames(claim, records)
+```
+
+The method validates all inputs before connecting: timestamps, deterministic
+thumbnail keys, the frozen model version, and 512 finite L2-normalized coordinates.
+Duplicate timestamps in one batch are rejected. It locks video before job and
+requires both to be processing with the receipt's current attempt count. A receipt
+from before recovery or from an older manual retry job cannot write frames.
+Recovery still requires stopping the sole processor first; this is not a lease.
+
+Conflicts on `(video_id, timestamp_ms, model_version)` update the embedding and
+thumbnail key while preserving the frame UUID and creation time. Returned UUIDs
+match input order and become available after commit. A later frame failure rolls
+back earlier inserts and updates in that batch. Successful writes leave job/video
+status unchanged, so processing frames remain excluded by Go's ready-only search.
+This method does not check S3 object existence or prune older rows. Finalization
+must verify the complete expected frame set before marking ready.
+
+```sh
+FRAMESEARCH_DATABASE_TEST=1 uv run --frozen pytest -q tests/test_frame_persistence.py
+# For the real combined pipeline, also configure a disposable local MinIO,
+# cache the real checkpoint, and enable FRAMESEARCH_MINIO_TEST=1,
+# FRAMESEARCH_REAL_MODEL_TEST=1 and HF_HUB_OFFLINE=1.
+```
+
+The new suite contains 30 input checks and 14 live checks. Together with previous
+database/configuration/claim tests, **100 passed, no skips** (5.82 seconds), using
+actual PostgreSQL 16/pgvector 0.8.7, MinIO, FFmpeg, and cached CPU OpenCLIP weights.
+It verifies concurrent retries, stable IDs, 60-frame batches, stale claims, model
+isolation, and whole-batch rollback under database-trigger failures. The combined
+pipeline persisted genuine vectors for timestamps `0, 3000, 6000` and executed a
+real text-to-vector cosine query. This does not measure semantic search accuracy
+or exercise Go/Kafka ingestion. Packaged-image verification passed as UID 10001
+without mounting source. Host regression: **189 passed, 86 skipped** (3.97 seconds).
 
 ## Integration notes for Developer 1
 
