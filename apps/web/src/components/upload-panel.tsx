@@ -18,7 +18,7 @@ export function UploadPanel() {
         : phase === "completing"
           ? "Starting indexing…"
           : phase === "done"
-            ? "Uploaded. Finding your frames."
+            ? "Upload complete. Check indexing status below."
             : "Ready to upload";
 
   return (
@@ -59,7 +59,7 @@ export function UploadPanel() {
             <Upload size={25} strokeWidth={1.3} />
           </div>
           <div className="upload-copy">
-            <h2>Drop a video. Find a moment.</h2>
+            <h2>Upload a video</h2>
             <p>Drag an MP4 here, or choose one from your device.</p>
             <span>MP4 · Up to 100 MB · Maximum 3 minutes</span>
           </div>

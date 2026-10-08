@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowUpRight, Film, Plus, Scan, Search } from "lucide-react";
+import { Film, Plus, Scan, Search } from "lucide-react";
 import { useWorkspace } from "./workspace";
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -16,13 +16,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <Scan size={25} />
           </span>
           <span>
-            frame<span className="brand-light">search</span>
-            <i />
+            Frame<span className="brand-light">Search</span>
           </span>
         </Link>
-        <div className="workspace-label">
-          YOUR WORKSPACE <span>01</span>
-        </div>
+        <div className="workspace-label">Workspace</div>
         <nav aria-label="Main navigation">
           <Link
             className={`nav-item ${path === "/" ? "active" : ""}`}
@@ -31,7 +28,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
           >
             <Search size={18} />
             <span>Search</span>
-            <span className="nav-hint">↗</span>
           </Link>
           <Link
             className={`nav-item ${path === "/library" ? "active" : ""}`}
@@ -39,59 +35,41 @@ export function Shell({ children }: { children: React.ReactNode }) {
             aria-current={path === "/library" ? "page" : undefined}
           >
             <Film size={18} />
-            <span>Video library</span>
+            <span>Library</span>
             {videos.length > 0 && (
               <span className="nav-count">{videos.length}</span>
             )}
           </Link>
         </nav>
-        <Link href="/library?upload=1" className="sidebar-upload">
-          <Plus size={18} /> Upload a video
-        </Link>
         <div className="sidebar-bottom">
-          <div className="workspace-note">
-            <Scan size={20} />
-            <p>
-              Your footage.
-              <br />
-              <strong>A new perspective.</strong>
-            </p>
-            <ArrowUpRight size={16} />
-          </div>
           <div className="local-status">
             <span
               className={`status-dot ${online === true ? "online" : online === false ? "offline" : ""}`}
             />
             <span>
               {online === true
-                ? "All systems ready"
+                ? "Connected"
                 : online === false
                   ? "Services unavailable"
-                  : "Connecting to workspace"}
+                  : "Connecting…"}
             </span>
           </div>
-          <span className="local-caption">LOCAL WORKSPACE</span>
+          <span className="local-caption">Local workspace</span>
         </div>
       </aside>
       <div className="main-shell">
         <header className="topbar">
           <div className="breadcrumb">
             Workspace <span>/</span>
-            <strong>
-              {path === "/library" ? "Video library" : "Visual search"}
-            </strong>
+            <strong>{path === "/library" ? "Library" : "Search"}</strong>
           </div>
-          <Link href="/library?upload=1" className="button button-small">
-            <Plus size={16} /> Upload video
-          </Link>
+          {path !== "/library" && (
+            <Link href="/library?upload=1" className="button button-small">
+              <Plus size={16} /> Upload video
+            </Link>
+          )}
         </header>
         <main id="main-content">{children}</main>
-        <footer className="app-footer">
-          <span>FIND THE FRAME. KEEP THE STORY.</span>
-          <span>
-            FrameSearch <i /> Visual search for your videos
-          </span>
-        </footer>
       </div>
     </div>
   );

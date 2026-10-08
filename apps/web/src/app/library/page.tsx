@@ -9,17 +9,11 @@ export default function LibraryPage() {
   const { videos, loading, error, refresh } = useWorkspace();
   return (
     <div className="page-content">
-      <div className="eyebrow">
-        <span /> THE SOURCE OF EVERY DISCOVERY
-      </div>
       <section className="intro">
         <div>
-          <h1>
-            Your video library<span className="lime">.</span>
-          </h1>
-          <p>All your footage, ready for a closer look.</p>
+          <h1>Video library</h1>
+          <p>Upload videos and track when they’re ready to search.</p>
         </div>
-        <Film size={34} strokeWidth={1} />
       </section>
       <UploadPanel />
       <div className="section-heading">
@@ -52,10 +46,8 @@ export default function LibraryPage() {
       ) : videos.length === 0 && !error ? (
         <div className="empty-panel">
           <Film size={32} strokeWidth={1} />
-          <h2>A blank reel. Endless possibilities.</h2>
-          <p>
-            Your uploaded videos will live here. Start with the video above.
-          </p>
+          <h2>No videos yet</h2>
+          <p>Upload an MP4 above to start building your library.</p>
         </div>
       ) : videos.length > 0 ? (
         <div className="video-list">

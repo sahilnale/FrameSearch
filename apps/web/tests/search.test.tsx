@@ -84,7 +84,7 @@ it("sends the actual selected video filter and offers an error retry", async () 
   fireEvent.submit(screen.getByRole("search"));
   await screen.findByText("processor unavailable");
   fireEvent.click(screen.getByRole("button", { name: "Try search again" }));
-  await screen.findByText("No frames found yet.");
+  await screen.findByText("No matching frames");
   expect(api.search).toHaveBeenLastCalledWith(
     "water",
     "video-id",
