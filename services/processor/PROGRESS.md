@@ -1,8 +1,9 @@
 # Developer 2 processor checkpoints
 
 Base contract/backend commit: `1028604`. Branch: `codex/processor-core`.
-Synced latest main `1b1185d` through a merge; the database schema is unchanged.
-Fetched main again for the storage checkpoint; it remains at `1b1185d`.
+Synced main's infrastructure at `7f9308f` through merge `5637745`; schema unchanged.
+Processor checkpoints through atomic job claims were merged and pushed to main
+at `822c29c`. This branch now starts from that main commit; the schema is unchanged.
 Remote main was reorganized into feature commits; the processor work was carried
 onto this fresh branch without modifying or discarding the earlier branch.
 Each commit covers one small behavior with its focused checks. Database work is
@@ -17,11 +18,24 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | Timestamped FFmpeg sampling | Implemented, verified, pushed | Commit `ba46b36`; 121 passed, including real decoding and all real-model checks |
 | MinIO source download and thumbnail upload | Implemented, verified, pushed | Commit `3407330`; 175 passed, no skips, including actual MinIO and real CPU inference |
 | PostgreSQL connection/configuration and schema check | Implemented, verified, pushed | Commit `87cf40e`; 22 focused checks pass, including seven actual PostgreSQL checks and fifteen configuration checks |
-| Atomic PostgreSQL job claiming | Implemented, verified | 56 focused checks pass, including concurrent claims, lock order, duplicate handling, and rollback |
-| Idempotent frame upserts | Planned | Not run |
-| Transactional ready/failed states | Planned | Not run |
-| Kafka consumption, bounded retries and recovery | Planned | Not run |
-| Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
+| Atomic PostgreSQL job claiming | Implemented, verified, pushed | Commit `aa9a6a5`; 56 focused checks pass, including concurrent claims, lock order, duplicate handling, and rollback |
+| Idempotent frame upserts | Implemented, verified, pushed | Commit `c6bc88b`; 100 focused checks pass, including real MinIO/FFmpeg/CLIP-to-pgvector persistence and retry checks |
+| Transactional ready/completed states | Implemented, verified, pushed | Commit `a6b8913`; 133 focused checks pass, including missing frame rejection and rollback of both states/duration/pruning |
+| Transactional failed states | Implemented, verified, pushed | Commit `74c4de1`; 151 focused checks pass, including failure rollback, retry completion, and protection of newer jobs |
+| Connected real video indexing operation | Implemented, verified, pushed | Commit `27bd084`; 154 focused live checks pass, including actual ready indexing, interrupted upload recovery, and corrupt MP4 rejection |
+| Frozen Kafka event envelope validation | Implemented, verified, pushed | Commit `94bd191`; 41 focused checks pass; no broker consumption or acknowledgment yet |
+| Persistent model cache matching shared Compose | Implemented, verified, pushed | Commit `a096699`; 13 settings checks, non-root named-volume persistence, and real offline CLIP inference pass |
+| Bounded single-job retries and durable outcomes | Implemented, verified, pushed | Commit `04f35db`; 24 policy checks and three actual queued-event pipeline checks; 235 focused live checks pass |
+| Pinned Kafka client and shared configuration | Implemented, verified, pushed | Commit `8e029ad`; 34 Kafka configuration checks; 62 focused configuration checks pass; native consumer constructs/closes |
+| Kafka consumer with manual offset commits | Implemented, verified, pushed | Commit `ed6e68e`; 32 adapter checks and three real Kafka 3.9 redelivery/offset/topic checks; 134 focused checks pass |
+| Serial Kafka-to-job ingestion loop | Implemented, verified, pushed | Commit `f0f3e44`; 17 loop checks and five actual Kafka-to-CLIP/MinIO/PostgreSQL checks; 156 focused checks pass |
+| Shared HTTP/worker lifecycle | Implemented, verified, pushed | Commit `0927c2f`; 12 lifecycle checks and two actual packaged Uvicorn socket checks; 186 focused checks pass |
+| Complete processor/AI regression | Verified, pushed | Commit `02a95cc`; 506 passed, zero skips; all live media/model/storage/database/Kafka/HTTP checks enabled |
+| Original labeled demo clips | Implemented, verified, pushed | Commit `4f5738f`; three real H.264 clips validate and sample at 0/3000/6000 ms; five prewritten labels |
+| Tiny synthetic semantic evaluation | Verified | Real packaged service indexes nine frames; all five queries rank the expected clip first; Recall@5 5/5 |
+| Licensed real-footage fixtures | Implemented, verified, pushed | Commit `8997c00`; three hash-pinned Commons recordings, credited 18-second MP4 excerpts, nine labels committed before inference |
+| Real-footage semantic evaluation | Verified | All nine queries find correct video first; relevant moment first in 7/9 and in top five in 9/9; actual pipeline over 18 frames |
+| Public Go end-to-end smoke | Deferred by user | Public upload/retry/search/playback and shared Compose remain unverified |
 
 This file is Developer 2-owned. Developer 1 maintains the root progress document.
 Only successfully executed checks will be marked verified here.
@@ -220,13 +234,286 @@ Only successfully executed checks will be marked verified here.
   pass. Frame rows, final ready/failed transitions, Kafka, and worker lifecycle
   remain separate features.
 
+## Idempotent frame persistence checkpoint
+
+- Added bounded, validated `FrameRecord` batches using the existing shared
+  `(video_id, timestamp_ms, model_version)` uniqueness constraint. No migration
+  or dependency changes. Thumbnail keys must match the video/time/frozen model;
+  vectors must contain 512 finite normalized coordinates.
+- A video-first locked transaction verifies the processing claim's job and
+  attempt count. Recovery/manual retry invalidate old receipts. Retry upserts
+  preserve frame IDs and creation times; a later error rolls back the whole batch.
+  Status remains processing, keeping partial results hidden from public search.
+- Added 30 input checks and 14 live checks covering stable IDs, updated vectors,
+  concurrent retries, 60 frames, invalid claims/states, old recovery/retry receipts,
+  other model rows, and rollback after rejected/suppressed database inserts.
+- Actual database/configuration suite: **100 passed, no skips** (5.82 seconds) on
+  Linux ARM64, PostgreSQL 16/pgvector 0.8.7, using the unchanged shared migration.
+  The combined real pipeline downloads a generated MP4 from private MinIO,
+  extracts three JPEGs with FFmpeg, computes genuine CPU CLIP embeddings, uploads
+  thumbnails, and upserts vectors twice without duplicate rows. Timestamps are
+  `0, 3000, 6000`; actual text-to-pgvector cosine SQL also passes. This is not a
+  semantic relevance evaluation or a full public Go/Kafka smoke test.
+- Production and dev test images built successfully. Packaged persistence/retry
+  verification passed as UID 10001 without mounting application source. Tests
+  used internal networking, no published ports, disposable credentials/private
+  buckets, and read-only source/checkpoint/migration mounts. All test containers,
+  the network, and test-owned database rows/functions/triggers were removed.
+- Full host suite: **189 passed, 86 skipped** (3.97 seconds). Ruff, formatting,
+  offline lockfile validation, and whitespace checks pass. No unrelated services
+  were started. Finalization still needs to verify the expected frame set; this
+  write operation does not prune older rows or change terminal states.
+
+## Successful job completion checkpoint
+
+- Added `Database.complete_job` in its own feature. Requires the full extraction
+  timeline, successful thumbnail uploads, valid duration, and the current claim.
+  Checks expected active-model rows/keys/vector norms, removes obsolete rows from
+  prior attempts, and commits ready/completed/duration/error clearing together.
+  Other model rows remain untouched. Source/object existence remains the caller's
+  responsibility; there is no storage/database distributed transaction.
+- Added 33 checks: 17 input guards and 16 actual PostgreSQL checks. Missing rows,
+  wrong keys/model/norm, outdated claims, and invalid states cannot mark ready.
+  Trigger failures/suppression on either update roll back states, duration, and
+  frame pruning. Tested one-frame and 60-frame/180-second success boundaries.
+- Focused live database suite: **133 passed, no skips** (8.24 seconds), including
+  previous claims/upserts and actual cached CLIP/MinIO/media persistence checks.
+  Packaged production completion passed as UID 10001 without source mounts.
+- Host regression: **206 passed, 102 skipped** (5.63 seconds). Ruff, formatting,
+  and whitespace checks pass. Test resources and owned rows/triggers/functions
+  were removed. The first test-image permission review timed out; the permitted
+  retry succeeded. No shared schema/infrastructure or unrelated service changed.
+- This feature is not wired into an ingestion worker yet. Failure recording and
+  Kafka offsets remain subsequent checkpoints.
+
+## Terminal job failure checkpoint
+
+- Added `Database.fail_job` separately from success handling. Validates a bounded
+  actionable reason and the current claim, then commits both failed statuses,
+  error fields, and timestamps together. Preserves partial rows for retry; Go's
+  ready-only search keeps them hidden. No automatic retries or Kafka commits yet.
+- Added 18 checks: five reason input guards and 13 real PostgreSQL checks. Covers
+  partial/no frames, trimmed reasons, Unicode character bounds, wrong/stale/queued/
+  completed claims, both update failures/suppression, and an actual failed-to-new-
+  retry-to-ready database flow with stable frame IDs and intact failure history.
+- Live database/configuration suite: **151 passed, no skips** (6.17 seconds),
+  including the real MinIO/FFmpeg/OpenCLIP persistence regression. Built production
+  and test images; packaged upserts/completion/failure passed as UID 10001 with
+  no application source mount. Host: **211 passed, 115 skipped** (3.49 seconds).
+- Ruff/formatting/whitespace checks pass. Tests removed their disposable servers,
+  network, private bucket, and owned rows/triggers/functions. No shared migration,
+  Go, infrastructure, or unrelated service changed.
+
+## Connected video indexing checkpoint
+
+- Added `VideoIndexer.index` to connect download, actual MP4 validation/decoding,
+  shared model inference, successful thumbnail PUTs, frame upserts, and completion.
+  Caller supplies the claimed job and already-loaded model, and owns failure/
+  retry policy. Blocking work stays outside database locks; context managers clean
+  temporary files on success/error. No Kafka or HTTP lifecycle changes yet.
+- Three actual integration checks pass: generated MP4 becomes ready with three
+  genuine vectors/thumbnails and actual ready-only text-vector SQL results; an
+  interrupted second thumbnail upload leaves processing/no rows/clean temp files,
+  then retries to ready with only three objects; corrupt MP4 rejection is followed
+  by explicit caller-recorded failed state. This is not a relevance evaluation.
+- Focused live suite: **154 passed, no skips** (10.09 seconds). Host regression:
+  **211 passed, 118 skipped** (3.42 seconds). Production/dev images build, packaged
+  indexer import and DB checks pass as UID 10001, Ruff/formatting/whitespace pass,
+  and disposable test resources are removed. No unrelated project was started.
+- Fetched new main `7f9308f`, which adds Developer 1's backend infrastructure.
+  Shared schema/Go contracts remain unchanged. Sync follows this feature commit;
+  processor cache compatibility and Kafka wiring are separate checkpoints.
+
+## Kafka envelope validation checkpoint
+
+- Added a pure parser for the exact frozen JSON envelope and keyed video UUID.
+  Returns UUIDs and UTC datetime; validates type/version/fields/timestamp/key,
+  rejects duplicate fields and malformed/nonobject/oversize/tombstone payloads.
+  Supports Go's RFC3339 nanosecond timestamps. No raw payloads in error messages.
+- **41 focused tests passed** (0.02 seconds). Ruff and formatting pass. No new
+  dependencies, database writes, broker operations, or acknowledgment behavior.
+  Malformed events cannot safely identify a job; consumer handling comes next.
+- Main's infrastructure was synced without conflicts at merge `5637745` and
+  pushed. The model-cache compatibility work is separate. Its image built, but
+  Docker shut down with a no-space-left-on-device error before live cache checks;
+  container/Kafka verification awaits more host disk space. Existing checkpoint
+  weights remain intact and unrelated projects have not been started.
+
+## Shared Compose cache compatibility checkpoint
+
+- Adopted `XDG_CACHE_HOME/openclip` when MODEL_CACHE_DIR is not explicitly set.
+  Standalone Docker defaults to `/cache/openclip`; shared Compose defaults to
+  its existing `/model-cache/openclip` volume. Host default remains unchanged.
+  Image creates the Compose directory with UID 10001 ownership. No A-owned file
+  changed; root credentials/environment defaults remain Developer 1's contracts.
+- **13 settings tests passed**, including four new path/override guards. Actual
+  production-image named-volume writes passed as UID 10001 and survived a second
+  container. Genuine offline CLIP text inference passed with the existing weights
+  at Compose's cache path, without MODEL_CACHE_DIR override. Test volume removed.
+- Docker ran out of disk space and shut down during the first build. After user
+  cleanup/restart, import checks exposed empty source files and a corrupt torch
+  dependency layer in that failed image. Rebuilt the affected layer and cleared
+  uv's installer cache before export (743.3 MiB), then passed real inference.
+- Removed only the identified corrupt FrameSearch image/cache records and our
+  completed disposable MinIO compiler cache. Built MinIO image, checkpoint weights,
+  application volumes, and unrelated project caches were retained. Host free
+  space after targeted cleanup: approximately 3.3 GiB. No Metro container started.
+- Ruff, formatting, and whitespace checks pass. Job policy is a separate feature;
+  Kafka broker/offset/lifecycle and public end-to-end tests remain pending.
+
+## Single-job retry policy checkpoint
+
+- Added `JobProcessor` separately from Kafka consumption. Claims once, retries
+  the same receipt up to three attempts with interruptible one/two-second backoff,
+  and returns only confirmed completed/failed/already-terminal outcomes. Invalid
+  media fails immediately; infrastructure exhaustion stores a bounded public
+  reason while private exception details stay in logs.
+- Busy/missing jobs, stale claims, unsuccessful/ambiguous database commits, and
+  interrupted retries cannot return an acknowledgment outcome. Failed active jobs
+  remain subject to Go's existing manual retry/recovery; there is no lease or
+  second queue. Local retries do not increment the DB claim attempt count.
+- **24 policy checks passed** (1.95 seconds). Three real checks cover a queued
+  upload completing, duplicate handling without new frames, transient thumbnail
+  PUT interruption followed by completion, and actual corrupt-MP4 failure.
+- Focused live regression: **235 passed, no skips** (13.68 seconds), against
+  PostgreSQL 17/pgvector 0.8.0 as pinned in shared Compose, actual private MinIO,
+  FFmpeg, and genuine cached CPU CLIP. Production/dev images build; packaged
+  imports and database smoke pass as UID 10001 without application source mounts.
+  Disposable containers/network and test-owned objects/rows/triggers were removed.
+- Host regression: **280 passed, 121 skipped** (4.03 seconds). Ruff, formatting,
+  offline lockfile validation, and whitespace checks pass. No Developer 1 files
+  changed and no unrelated project service started. Kafka offsets and the shared
+  HTTP/worker lifecycle remain separate checkpoints.
+
+## Kafka client configuration checkpoint
+
+- Added only the pinned native `confluent-kafka==2.15.1` dependency and
+  `KafkaSettings`. Existing dependency versions remain unchanged; the lockfile
+  adds one package. Shared broker/topic variables match Compose; the optional
+  processor-local group defaults to `framesearch-processor`.
+- Validates CSV host:port endpoints (including IPv6) and bounded topic/group
+  identifiers. **34 focused Kafka checks** and **62 configuration regression
+  checks pass** (0.03 seconds). Native client/librdkafka both report 2.15.1;
+  actual consumer construction and close pass on macOS ARM64.
+- Ruff, formatting, offline lockfile validation, and whitespace checks pass.
+  No broker subscription, offset handling, HTTP lifecycle, or shared file changes
+  are included. Kafka 3.9.0, matching Compose, is cached for subsequent real tests.
+
+## Manual Kafka consumer checkpoint
+
+- Added `UploadConsumer` with one pending record, bounded polling/prefetch,
+  disabled automatic offset storage/commit/topic creation, and the classic group
+  protocol for shared Kafka 3.9. Checks existing topic metadata before subscription.
+  Rejects another poll until the pending record's synchronous next-offset commit
+  is confirmed, including each returned partition error and exact coordinates.
+- **32 adapter unit checks pass**, covering receive/start/commit failures,
+  unexpected message coordinates, acknowledgment ordering, and idempotent close.
+  Three actual broker checks prove replay after unacknowledged close, committed
+  restart at the next event, and no automatic creation of an unknown topic.
+- `python services/processor/tests/run_kafka_tests.py`: **134 passed, no skips**
+  (5.77 seconds), using shared Kafka 3.9.0 with internal networking/no published
+  ports. Test-owned topics/groups and disposable containers/network were removed.
+  Standard production and dev images build. Packaged native consumer and genuine
+  offline CLIP inference pass as UID 10001 without application source mounts.
+- Full host suite: **346 passed, 124 skipped** (4.42 seconds). Ruff, formatting,
+  offline lockfile validation, and whitespace checks pass. No shared files changed.
+  Removed only 16 obsolete task-created processor image tags and their three
+  identified old dependency-cache trees; host free space recovered to about 15 GiB
+  before rebuilding. No application volumes or unrelated services were modified.
+- Adapter does not yet call `JobProcessor` or run during HTTP service lifespan;
+  those are subsequent independent checkpoints. No full public API smoke yet.
+
+## Serial Kafka indexing checkpoint
+
+- Added `IngestionWorker` separately from HTTP startup. Parses each keyed event,
+  runs the single-job policy, and acknowledges only its durable terminal return.
+  One job executes at a time; any unresolved event stops consumption without
+  advancing to later events. Readiness clears and the consumer closes on all exits.
+  Shutdown before/during poll or retry cannot claim/acknowledge new unfinished work.
+- **17 loop unit checks pass**, covering durable ordering, idle/shutdown paths,
+  invalid events, uncertain jobs/commits, unknown outcomes, startup/close failures,
+  and preservation of the original failure when close also fails.
+- Extended the owned Kafka test helper with `--indexing`: disposable PostgreSQL
+  17/pgvector 0.8.0, private MinIO, unchanged migration, cached genuine CLIP,
+  internal networking, no published ports, and read-only source/checkpoint mounts.
+  Five real cases verify successful indexing/duplicate acknowledgment, corrupt
+  MP4 terminal failure, and malformed/busy/missing events that stop without
+  committing or processing later queued work. Sources/JPEG temp files are cleaned.
+- `python services/processor/tests/run_kafka_tests.py --indexing --skip-build`:
+  **156 passed, no skips** (12.95 seconds). Production/dev images built beforehand.
+  The first run exposed a missing PYTHONPATH in the new schema-wait helper; fixed
+  the test-container import path and reran successfully. Test-owned rows/objects/
+  topics/groups, containers, and network were removed.
+- Host suite: **363 passed, 129 skipped** (4.46 seconds). Ruff, formatting, offline
+  lockfile validation, and whitespace checks pass. No shared files or unrelated
+  services modified. The HTTP service does not yet launch this worker; service
+  lifecycle and the public Go end-to-end path remain separate work.
+
+## Shared HTTP/indexing service lifecycle checkpoint
+
+- Production HTTP startup now creates one dedicated runtime thread: genuine
+  model load/warmup, existing schema/private-bucket checks, and the serial Kafka
+  loop. HTTP and indexing hold the same model instance. Blocking startup/indexing
+  stays off the event loop. No embedding substitutes or separate model process.
+- Readiness reports loading/starting/stopping/failure as 503 with bounded reasons.
+  A worker failure keeps liveness and healthy text inference available while
+  leaving its unresolved Kafka offset pending. Shutdown signals the shared event,
+  waits for current initialization/indexing and consumer/storage cleanup, then
+  releases model/worker references. No detached initialization thread is abandoned.
+- **12 runtime/builder checks pass**: shared model/stop identity, background
+  initialization, live/text HTTP during startup, schema/storage/broker failures,
+  unexpected worker exit, cleanup, and shutdown waiting for in-flight work.
+  Existing embedding-only factory tests explicitly disable ingestion; the
+  production app always uses the real worker factory and backend environment.
+- Two actual packaged Uvicorn process tests run with PYTHONPATH=/app (no test
+  source override), real cached CPU CLIP, Kafka 3.9, PostgreSQL 17/pgvector 0.8.0,
+  and private MinIO. One logged model load serves normalized HTTP text and three
+  indexed frame vectors/JPEGs; duplicates cause one claim, text-to-pgvector SQL
+  passes, and SIGTERM cleans up. An invalid envelope stops ingestion, changes
+  readiness to worker_failed, leaves the offset unset, and preserves later work.
+- `python services/processor/tests/run_kafka_tests.py --indexing --skip-build`:
+  **186 passed, no skips** (19.42 seconds). Standard production/dev images built
+  with current runtime source first. Updated HTTP verifier accepts worker-starting
+  readiness; it passed against the actual packaged server. All disposable test
+  processes, containers/network, rows/objects/topics/groups were cleaned up.
+- Host suite: **375 passed, 131 skipped** (4.43 seconds). Ruff, formatting, offline
+  lockfile validation, and whitespace checks pass. Documented current startup and
+  stopped-processor stale recovery without requiring a frontend Dockerfile.
+  No shared files or unrelated services modified. Full shared Compose/public Go
+  ingestion/search/playback and semantic evaluation remain unverified.
+
 ## Remaining sequence
 
-1. Idempotent frame upserts, with actual pgvector persistence tests.
-2. Ready/failed job and video transitions in the same transaction.
-3. Kafka consumption, bounded retries, offset handling, and service lifecycle.
-4. Real backend/processor end-to-end smoke test using the shared infrastructure.
-5. Frontend upload, search, and playback, after the backend integration works.
+The user deferred the public Go backend integration and requested the complete
+processor/AI verification now. `run_kafka_tests.py --indexing --full --skip-build`
+passed **506 tests, zero skips** (47.94 seconds). Unit doubles are confined to test
+cases; all genuine FFmpeg/CLIP/MinIO/PostgreSQL/Kafka/packaged HTTP integration
+checks ran successfully. Disposable resources were removed. The full-mode helper
+requires `--indexing` so missing live dependencies are not silently skipped.
+Details and scope boundaries are recorded in `VERIFICATION.md`. The separate
+labeled visual-search check passed in **10.66 seconds**, using genuine packaged
+HTTP/Kafka/MinIO/FFmpeg/CLIP/PostgreSQL and the five labels committed beforehand.
+Top-1 video accuracy and Recall@5 are both **5/5** across three generated shape
+clips/nine frames. Results are in `evaluations/generated-shapes-v1.json`; this
+does not establish accuracy on real footage. Test-owned resources were removed.
+Host regression: **375 passed, 132 skipped** (6.60 seconds); all live components
+were explicitly enabled for the separate full regression and semantic runs.
+
+The user requested actual online footage next. Three licensed Commons recordings
+were downloaded with pinned source hashes, converted into credited real MP4
+excerpts, and visually inspected before nine query/time labels were committed.
+The same real-stack evaluator passed in **7.88 seconds**, with video accuracy
+**9/9**, first relevant-frame accuracy **7/9**, and any relevant frame in the
+top five **9/9**. Two first-frame misses remain: yellow-front train selects 6 s;
+empty platform selects 9 s when the train is approaching. Mean frame Recall@5
+**85.2%**, Precision@5 **82.2%**; metrics and raw scores are recorded in
+`evaluations/commons-real-v1.json` and `VERIFICATION.md`. No post-result label,
+query, model, or production ranking changes were made. Generated compatibility
+also passed (7.40 seconds). Host regression **375 passed, 132 skipped** (4.38
+seconds); lint/format/offline lock checks pass; disposable resources cleaned.
+
+1. Real backend/processor end-to-end smoke test using the shared infrastructure.
+2. Frontend upload, search, and playback, after the backend integration works.
 
 Each feature remains a separate tested commit and is pushed at its checkpoint.
 Full end-to-end functionality is not yet implemented.

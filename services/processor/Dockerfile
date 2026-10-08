@@ -6,10 +6,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certi
     && mkdir -p /cache/openclip && chown -R processor:processor /cache
 WORKDIR /app
 ENV UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1 PYTHONUNBUFFERED=1 \
-    MODEL_CACHE_DIR=/cache/openclip HF_HOME=/cache/huggingface HF_HUB_DISABLE_TELEMETRY=1
+    XDG_CACHE_HOME=/cache HF_HOME=/cache/huggingface HF_HUB_DISABLE_TELEMETRY=1
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev && uv cache clean
 COPY framesearch_processor ./framesearch_processor
+RUN mkdir -p /model-cache/openclip && chown -R processor:processor /model-cache
 USER processor
 EXPOSE 8000
 CMD [".venv/bin/uvicorn", "framesearch_processor.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

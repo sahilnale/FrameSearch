@@ -12,6 +12,7 @@ dependencies = [
     "pillow==12.1.1",
     "boto3==1.43.109",
     "psycopg[binary]==3.3.6",
+    "confluent-kafka==2.15.1",
 ]
 
 [dependency-groups]
@@ -32,11 +33,12 @@ explicit = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = [".", "../../scripts"]
 markers = [
     "real_model: loads the real checkpoint; enable with FRAMESEARCH_REAL_MODEL_TEST=1",
     "minio: exercises a live MinIO instance; enable with FRAMESEARCH_MINIO_TEST=1",
     "database: uses disposable PostgreSQL; enable with FRAMESEARCH_DATABASE_TEST=1",
+    "kafka: uses a disposable Kafka broker; enable with FRAMESEARCH_KAFKA_TEST=1",
 ]
 
 [tool.ruff]

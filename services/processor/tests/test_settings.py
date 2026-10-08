@@ -22,6 +22,23 @@ def test_read_environment(monkeypatch):
     assert settings.image_batch_size == 2
 
 
+@pytest.mark.parametrize("cache_root", ["/model-cache", "/cache", None])
+def test_model_cache_follows_compose_xdg_volume_or_local_default(monkeypatch, cache_root):
+    monkeypatch.delenv("MODEL_CACHE_DIR", raising=False)
+    if cache_root is None:
+        monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
+    else:
+        monkeypatch.setenv("XDG_CACHE_HOME", cache_root)
+    expected = Path(cache_root) / "openclip" if cache_root else Path(".cache/openclip")
+    assert Settings.from_env().model_cache_dir == expected
+
+
+def test_explicit_model_cache_overrides_xdg_root(monkeypatch):
+    monkeypatch.setenv("XDG_CACHE_HOME", "/model-cache")
+    monkeypatch.setenv("MODEL_CACHE_DIR", "/custom/checkpoints")
+    assert Settings.from_env().model_cache_dir == Path("/custom/checkpoints")
+
+
 @pytest.mark.parametrize(
     "values",
     [

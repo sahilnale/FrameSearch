@@ -15,7 +15,7 @@ from framesearch_processor.settings import MODEL_VERSION
     reason="set FRAMESEARCH_REAL_MODEL_TEST=1 to load the real OpenCLIP checkpoint",
 )
 def test_real_openclip_through_http():
-    with TestClient(create_app()) as client:
+    with TestClient(create_app(worker_factory=None)) as client:
         deadline = time.monotonic() + 600
         while time.monotonic() < deadline:
             response = client.get("/health/ready")
