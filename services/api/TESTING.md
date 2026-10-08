@@ -33,3 +33,13 @@ similarities, and queued/stale reconciliation without extra jobs.
 Full S3/Kafka/processor integration and real video smoke tests remain a separate
 milestone. The DB tests use synthetic vectors and a test publisher; they do not
 claim real ingestion or Kafka delivery.
+
+## Real storage and Kafka publication
+
+From the repository root, `make test-infra` runs the backend suite in Compose,
+including all DB tests and TestInfrastructureUploadAndPublication. Alternatively
+set TEST_DATABASE_URL, TEST_S3_ENDPOINT, TEST_KAFKA_BROKERS, and optional
+TEST_S3_ACCESS_KEY/TEST_S3_SECRET_KEY (local demo defaults) for local go test.
+The test verifies actual CORS, signed PUT, queued job creation, duplicate complete,
+Kafka key/envelope, byte-range GET, and anonymous access rejection. The payload
+is opaque fixture bytes; this does not prove video decoding or CLIP relevance.
