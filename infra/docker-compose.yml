@@ -109,6 +109,40 @@ services:
       - ./minio-init.sh:/minio-init.sh:ro
     entrypoint: ["/bin/sh", "/minio-init.sh"]
     restart: "no"
+  api:
+    build:
+      context: ../services/api
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-framesearch}:${POSTGRES_PASSWORD:-framesearch}@postgres:5432/${POSTGRES_DB:-framesearch}?sslmode=disable
+      KAFKA_BROKERS: kafka:29092
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-media.uploaded}
+      S3_ENDPOINT_INTERNAL: http://minio:9000
+      S3_ENDPOINT_PUBLIC: ${S3_ENDPOINT_PUBLIC:-http://localhost:9000}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-framesearch}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-framesearch-local-secret}
+      S3_BUCKET: ${S3_BUCKET:-framesearch}
+      PROCESSOR_URL: http://processor:8000
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      MODEL_NAME: ${MODEL_NAME:-ViT-B-32}
+      MODEL_PRETRAINED: ${MODEL_PRETRAINED:-laion2b_s34b_b79k}
+      RECONCILE_STALE_AFTER: ${RECONCILE_STALE_AFTER:-15m}
+      API_ADDR: :8080
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 6s
+      retries: 30
+      start_period: 120s
+    restart: unless-stopped
 volumes:
   postgres-data:
   kafka-data:
