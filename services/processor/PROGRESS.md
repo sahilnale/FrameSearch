@@ -19,8 +19,9 @@ split into connection/configuration, claims, frame upserts, and terminal states.
 | MinIO source download and thumbnail upload | Implemented, verified, pushed | Commit `3407330`; 175 passed, no skips, including actual MinIO and real CPU inference |
 | PostgreSQL connection/configuration and schema check | Implemented, verified, pushed | Commit `87cf40e`; 22 focused checks pass, including seven actual PostgreSQL checks and fifteen configuration checks |
 | Atomic PostgreSQL job claiming | Implemented, verified, pushed | Commit `aa9a6a5`; 56 focused checks pass, including concurrent claims, lock order, duplicate handling, and rollback |
-| Idempotent frame upserts | Implemented, verified | 100 focused checks pass, including real MinIO/FFmpeg/CLIP-to-pgvector persistence and retry checks |
-| Transactional ready/failed states | Planned | Not run |
+| Idempotent frame upserts | Implemented, verified, pushed | Commit `c6bc88b`; 100 focused checks pass, including real MinIO/FFmpeg/CLIP-to-pgvector persistence and retry checks |
+| Transactional ready/completed states | Implemented, verified | 133 focused checks pass, including missing frame rejection and rollback of both states/duration/pruning |
+| Transactional failed states | Planned | Not run |
 | Kafka consumption, bounded retries and recovery | Planned | Not run |
 | Real end-to-end smoke and semantic evaluation | Planned | Blocked on infrastructure and later features |
 
@@ -251,9 +252,31 @@ Only successfully executed checks will be marked verified here.
   were started. Finalization still needs to verify the expected frame set; this
   write operation does not prune older rows or change terminal states.
 
+## Successful job completion checkpoint
+
+- Added `Database.complete_job` in its own feature. Requires the full extraction
+  timeline, successful thumbnail uploads, valid duration, and the current claim.
+  Checks expected active-model rows/keys/vector norms, removes obsolete rows from
+  prior attempts, and commits ready/completed/duration/error clearing together.
+  Other model rows remain untouched. Source/object existence remains the caller's
+  responsibility; there is no storage/database distributed transaction.
+- Added 33 checks: 17 input guards and 16 actual PostgreSQL checks. Missing rows,
+  wrong keys/model/norm, outdated claims, and invalid states cannot mark ready.
+  Trigger failures/suppression on either update roll back states, duration, and
+  frame pruning. Tested one-frame and 60-frame/180-second success boundaries.
+- Focused live database suite: **133 passed, no skips** (8.24 seconds), including
+  previous claims/upserts and actual cached CLIP/MinIO/media persistence checks.
+  Packaged production completion passed as UID 10001 without source mounts.
+- Host regression: **206 passed, 102 skipped** (5.63 seconds). Ruff, formatting,
+  and whitespace checks pass. Test resources and owned rows/triggers/functions
+  were removed. The first test-image permission review timed out; the permitted
+  retry succeeded. No shared schema/infrastructure or unrelated service changed.
+- This feature is not wired into an ingestion worker yet. Failure recording and
+  Kafka offsets remain subsequent checkpoints.
+
 ## Remaining sequence
 
-1. Ready/failed job and video transitions in the same transaction.
+1. Failed job and video transitions in the same transaction.
 2. Kafka consumption, bounded retries, offset handling, and service lifecycle.
 3. Real backend/processor end-to-end smoke test using the shared infrastructure.
 4. Frontend upload, search, and playback, after the backend integration works.
