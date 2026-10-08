@@ -4,6 +4,12 @@ Developer 2-owned Next.js App Router frontend. Shared HTTP contracts are in
 `FrameSearch_Specs/SPEC.md`, section 13. All browser requests use the public Go
 API; storage requests use the signed URLs returned by that API.
 
+The current interface is a light workspace with white panels, cool gray and blue
+actions. Search and Library share compact top navigation, readable text, and
+guidance based on actual library status. There are no fixture-specific query
+suggestions or promotional hero panels. Research and design decisions are in
+[DESIGN.md](DESIGN.md).
+
 ```sh
 cd apps/web
 npm ci
@@ -31,7 +37,7 @@ npm run build
   selected local file; the shared API has no upload-resume URL endpoint.
 - Search: actual Go results, per-video filters, signed thumbnails, true timestamps
   and raw cosine scores. New queries abort older requests; expired thumbnails have
-  a refresh action. Query chips are descriptions to try, not recorded results.
+  a refresh action. Queries are user-entered and independent of evaluation clips.
 - Playback: click a real result, request a signed original, wait for metadata,
   seek to the timestamp, use native controls. Escape/background/close dismiss the
   native modal and restore focus. Expired/unreadable URLs can be refreshed.
