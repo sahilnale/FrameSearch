@@ -310,7 +310,9 @@ export function SearchExperience({
       {selected && (
         <PlaybackOverlay
           key={selected.frame_id}
-          result={selected}
+          videoId={selected.video_id}
+          filename={selected.filename}
+          timestampMs={selected.timestamp_ms}
           onClose={() => setSelected(null)}
         />
       )}

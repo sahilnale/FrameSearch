@@ -3,33 +3,38 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Film, RotateCcw, X } from "lucide-react";
 import { api, errorMessage } from "@/lib/api";
-import type { SearchResult } from "@/lib/contracts";
 import { formatTime } from "@/lib/upload";
 
 export function PlaybackOverlay({
-  result,
+  videoId,
+  filename,
+  timestampMs,
   onClose,
 }: {
-  result: SearchResult;
+  videoId: string;
+  filename: string;
+  timestampMs?: number;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const request = useRef<AbortController | null>(null);
-  const target = useRef(result.timestamp_ms / 1000);
+  const startTime = timestampMs === undefined ? 0 : timestampMs / 1000;
+  const target = useRef(startTime);
   const loaded = useRef(false);
   const expires = useRef(0);
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [time, setTime] = useState<number | null>(null);
+  const [duration, setDuration] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
     try {
-      const signed = await api.playback(result.video_id, controller.signal);
+      const signed = await api.playback(videoId, controller.signal);
       if (!controller.signal.aborted) {
         expires.current = Date.now() + signed.expires_in_seconds * 1000;
         setUrl(signed.url);
@@ -40,7 +45,7 @@ export function PlaybackOverlay({
         setLoading(false);
       }
     }
-  }, [result.video_id]);
+  }, [videoId]);
 
   function refresh() {
     loaded.current = false;
@@ -87,20 +92,25 @@ export function PlaybackOverlay({
       target.current > player.duration
     ) {
       setLoading(false);
-      setError("This matching timestamp is outside the playable video.");
+      setError(
+        timestampMs === undefined
+          ? "This video did not report a playable duration. Refresh playback and try again."
+          : "This matching timestamp is outside the playable video.",
+      );
       return;
     }
     try {
       player.currentTime = target.current;
       loaded.current = true;
       setTime(player.currentTime);
+      setDuration(player.duration);
       setLoading(false);
       void player.play().catch(() => {
         /* Native play controls remain available if autoplay is blocked. */
       });
     } catch {
       setLoading(false);
-      setError("Could not seek to this frame. Refresh playback and try again.");
+      setError("Could not start playback. Refresh playback and try again.");
     }
   }
 
@@ -123,7 +133,7 @@ export function PlaybackOverlay({
             <div className="eyebrow">
               <span /> Playback
             </div>
-            <h2 id="playback-title">{result.filename}</h2>
+            <h2 id="playback-title">{filename}</h2>
           </div>
           <button
             autoFocus
@@ -143,7 +153,7 @@ export function PlaybackOverlay({
               preload="metadata"
               crossOrigin="anonymous"
               playsInline
-              aria-label={`${result.filename} video player`}
+              aria-label={`${filename} video player`}
               onLoadedMetadata={seek}
               onTimeUpdate={(event) => setTime(event.currentTarget.currentTime)}
               onError={() => {
@@ -166,7 +176,9 @@ export function PlaybackOverlay({
               <span className="spinner" />
               <span>
                 {url
-                  ? `Jumping to ${formatTime(result.timestamp_ms)}…`
+                  ? timestampMs === undefined
+                    ? "Starting playback…"
+                    : `Jumping to ${formatTime(timestampMs)}…`
                   : "Loading video…"}
               </span>
             </div>
@@ -178,8 +190,7 @@ export function PlaybackOverlay({
               <button
                 className="button button-secondary"
                 onClick={() => {
-                  target.current =
-                    video.current?.currentTime || result.timestamp_ms / 1000;
+                  target.current = video.current?.currentTime ?? startTime;
                   void refresh();
                 }}
               >
@@ -195,19 +206,32 @@ export function PlaybackOverlay({
               {time === null ? "--:--" : formatTime(time * 1000)}
             </span>
             <span className="player-found">
-              Matching frame <strong>{formatTime(result.timestamp_ms)}</strong>
+              {timestampMs === undefined ? (
+                <>
+                  Duration{" "}
+                  <strong>
+                    {duration === null ? "--:--" : formatTime(duration * 1000)}
+                  </strong>
+                </>
+              ) : (
+                <>
+                  Matching frame <strong>{formatTime(timestampMs)}</strong>
+                </>
+              )}
             </span>
           </div>
-          <button
-            className="text-button"
-            disabled={!url || loading || !!error}
-            onClick={() => {
-              target.current = result.timestamp_ms / 1000;
-              seek();
-            }}
-          >
-            Back to matching frame <ArrowUpRight size={14} />
-          </button>
+          {timestampMs !== undefined && (
+            <button
+              className="text-button"
+              disabled={!url || loading || !!error}
+              onClick={() => {
+                target.current = timestampMs / 1000;
+                seek();
+              }}
+            >
+              Back to matching frame <ArrowUpRight size={14} />
+            </button>
+          )}
         </footer>
       </div>
     </dialog>
