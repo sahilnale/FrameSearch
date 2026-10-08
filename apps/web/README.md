@@ -4,16 +4,17 @@ Developer 2-owned Next.js App Router frontend. Shared HTTP contracts are in
 `FrameSearch_Specs/SPEC.md`, section 13. All browser requests use the public Go
 API; storage requests use the signed URLs returned by that API.
 
-The current interface is a light workspace with white panels, cool gray and blue
-actions. Search and Library share compact top navigation, readable text, and
-guidance based on actual library status. There are no fixture-specific query
-suggestions or promotional hero panels. Research and design decisions are in
+The current interface is a light workspace with cool gray and blue. Search uses
+oversized type, a blue query panel and an asymmetric footage layout. Search and
+Library share compact top navigation and guidance based on actual library status.
+Copy and suggestions are independent of evaluation clips. Design decisions are in
 [DESIGN.md](DESIGN.md).
 
-The search start screen shows up to three ready videos using genuine paused
-previews from signed playback URLs. Select one to scope the query; select it again
-to search the whole library. Preview failures do not prevent searching. No preview
-autoplays, and the shared API/schema are unchanged.
+The search start screen shows up to three ready videos using genuine midpoint
+stills from signed playback URLs. Hover previews play muted on supported devices
+when reduced motion is off, then pause and return to the still when you leave.
+Select one to scope the query; select it again to search the whole library.
+Preview failures do not prevent searching. The shared API/schema are unchanged.
 
 In Library, click a ready video's filename or play tile to watch its original
 from the beginning. Search remains a separate action. The existing playback API

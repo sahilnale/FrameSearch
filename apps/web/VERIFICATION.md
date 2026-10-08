@@ -1,5 +1,39 @@
 # Frontend verification — 2026-10-07
 
+## Editorial search workspace
+
+Layout checkpoint: `645320d`. Hover previews: `0651203`. All code changes are
+under `apps/web`; the API, schema and running backend were retained.
+
+- **28 tests passed**, five files, 1.41s. Added interaction coverage for muted
+  hover playback, leaving at the midpoint, and suppressing hover playback when
+  motion or hover is unavailable. Lint, TypeScript, formatting and the final
+  production Docker build passed.
+- The live library contained six ready videos, with three new uploads arriving
+  during this work. The starting screen used its three newest actual videos;
+  no fixture content was injected for the redesign. Native stills decoded at
+  **9.525/19.05s**, **2.26/4.52s** and **6.48/12.96s**. All were muted, paused,
+  readyState **4**, with no media error.
+- Hovering the first source through a real pointer interaction played it muted
+  (observed **9.784249s**, paused false). Moving to the query field stopped it
+  and restored **9.525s**. Clicking also selected that source for search.
+- A real train-scoped query returned **six** frames. Native playback returned
+  to the **00:12** match (observed **12.23224s**, readyState **4**, no media error).
+  Library playback still opened at **00:00** with duration **18s** (subsequent
+  observation **0.142721s**, readyState **4**, no media error). Escape restored
+  the respective result/row trigger after both checks.
+- The final starting screen fit **320, 390 and 1440px** without horizontal
+  overflow. Library fit **320px** too. Desktop and phone screenshots were saved
+  locally, and viewport overrides were reset.
+
+This is an in-app Chromium check. Reduced-motion behavior is unit-tested;
+other browser engines and the one/two-preview CSS layouts were not exercised
+live in this pass. No new ingestion benchmark or failure injection was performed.
+Existing Compose/recovery scope remains separate.
+
+Raw observations: `evaluations/studio-search-smoke.json`. Screenshots are ignored
+under `test-results/studio-search-*.jpg`.
+
 ## Direct library playback
 
 Shared-player checkpoint: `b6e4350`. Library integration: `431d015`. All changes
