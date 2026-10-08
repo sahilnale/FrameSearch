@@ -1,6 +1,8 @@
 DOCKER ?= docker
 GO ?= go
 PYTHON ?= python3
+API_URL ?= http://localhost:8080
+SMOKE_ARGS ?=
 ENV_FILE := $(if $(wildcard .env),.env,.env.example)
 COMPOSE = $(DOCKER) compose --env-file $(ENV_FILE) -f infra/docker-compose.yml
 
@@ -26,8 +28,7 @@ test-infra:
 	$(COMPOSE) --profile tests run --rm api-tests
 
 smoke: check-app
-	@test -f scripts/smoke.py || { echo 'Developer 2 smoke script scripts/smoke.py is not present.' >&2; exit 1; }
-	$(PYTHON) scripts/smoke.py
+	FRAMESEARCH_COMPOSE_COMMAND='$(COMPOSE) --profile app' $(PYTHON) infra/smoke.py --api-url '$(API_URL)' $(SMOKE_ARGS)
 
 reconcile:
 	$(COMPOSE) run --rm --no-deps api --reconcile
