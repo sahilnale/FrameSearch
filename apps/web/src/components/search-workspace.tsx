@@ -33,6 +33,7 @@ export function SearchExperience({
     videos,
     loading: libraryLoading,
     error: libraryError,
+    refresh: refreshLibrary,
   } = useWorkspace();
   const ready = videos.filter((video) => video.status === "ready");
   const [query, setQuery] = useState("");
@@ -202,16 +203,19 @@ export function SearchExperience({
               <Search size={30} strokeWidth={1} />
               <h2>No matching frames</h2>
               <p>
-                {ready.length === 0
-                  ? "Upload a video and wait for indexing to finish, then search again."
-                  : "Try another description, or search across all your indexed videos."}
+                {libraryError
+                  ? "Your library could not be loaded. Check the connection in Library."
+                  : ready.length === 0
+                    ? "Check your library for upload and indexing status, then search again."
+                    : "Try another description, or search across all your indexed videos."}
               </p>
-              {ready.length === 0 && (
+              {ready.length === 0 && !libraryError && !libraryLoading && (
                 <Link
-                  href="/library?upload=1"
+                  href={videos.length ? "/library" : "/library?upload=1"}
                   className="button button-secondary"
                 >
-                  Add a video <ArrowRight size={15} />
+                  {videos.length ? "Open library" : "Add a video"}{" "}
+                  <ArrowRight size={15} />
                 </Link>
               )}
             </div>
@@ -240,22 +244,44 @@ export function SearchExperience({
             </>
           )}
         </section>
+      ) : libraryError ? (
+        <div className="notice error search-notice" role="alert">
+          <p>{libraryError}</p>
+          <button
+            className="button button-secondary"
+            onClick={() => void refreshLibrary()}
+          >
+            <ArrowUpRight size={15} /> Reload library
+          </button>
+        </div>
+      ) : libraryLoading ? (
+        <div className="empty-panel search-start" role="status">
+          <span className="spinner" /> Loading your library…
+        </div>
       ) : (
         <section className="empty-panel search-start">
           <Search size={30} strokeWidth={1.5} />
           <h2>
             {ready.length
               ? "Find a frame in your videos"
-              : "Start with a video"}
+              : videos.length
+                ? "No searchable videos yet"
+                : "Start with a video"}
           </h2>
           <p>
             {ready.length
               ? "Enter a visual description above. Matching frames will appear here."
-              : "Upload a video and wait for indexing to finish before searching."}
+              : videos.length
+                ? "Check your library for upload and indexing status. Videos become searchable when indexing finishes."
+                : "Upload a video and wait for indexing to finish before searching."}
           </p>
-          {!ready.length && !libraryLoading && !libraryError && (
-            <Link href="/library?upload=1" className="button button-secondary">
-              Upload video <ArrowRight size={16} />
+          {!ready.length && (
+            <Link
+              href={videos.length ? "/library" : "/library?upload=1"}
+              className="button button-secondary"
+            >
+              {videos.length ? "Open library" : "Upload video"}{" "}
+              <ArrowRight size={16} />
             </Link>
           )}
         </section>
