@@ -4,10 +4,13 @@ PYTHON ?= python3
 UV ?= uv
 API_URL ?= http://localhost:8080
 SMOKE_ARGS ?=
-ENV_FILE := $(if $(wildcard .env),.env,.env.example)
+ENV_FILE ?= .env
 COMPOSE = $(DOCKER) compose --env-file $(ENV_FILE) -f infra/docker-compose.yml
 
-.PHONY: up backend down logs test test-infra smoke smoke-recovery reconcile reconcile-stale migrate config check-app
+.PHONY: setup-env up backend down logs test test-infra smoke smoke-recovery reconcile reconcile-stale migrate config check-app
+
+setup-env:
+	$(PYTHON) infra/setup_env.py
 
 up: check-app
 	$(COMPOSE) --profile app up --build

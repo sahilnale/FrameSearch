@@ -12,7 +12,7 @@ Requires a running Docker engine and Docker Compose with profiles/build support.
 Ports bind to localhost; this app has no authentication and is for local use.
 
 ```sh
-cp .env.example .env
+make setup-env
 make config
 make up
 # In another terminal, after the model and worker are ready:
@@ -44,7 +44,7 @@ Requires Docker Desktop with its engine running and Docker Compose. Published
 ports bind to localhost; this app has no authentication and is for local use.
 
 ```sh
-cp .env.example .env
+make setup-env
 make config
 make backend
 curl http://localhost:8080/health/live
@@ -52,7 +52,10 @@ curl http://localhost:8080/health/live
 
 If `docker` is missing from your shell PATH on macOS, use
 `make DOCKER=/Applications/Docker.app/Contents/Resources/bin/docker backend`.
-`.env` is ignored by Git. Default credentials are local demo placeholders. When
+`make setup-env` generates unique passwords in a Git-ignored, owner-only `.env`
+and leaves an existing configured file untouched. The example has no passwords;
+Compose refuses to start without credentials. Do not use `.env.example` as a
+runtime environment file. When
 changing PostgreSQL credentials, keep user/password URL-safe because Compose
 constructs its internal database connection string from those values.
 

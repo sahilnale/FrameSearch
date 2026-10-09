@@ -75,7 +75,7 @@ def unsigned(url):
 def compose(*arguments, **kwargs):
     command = os.environ.get(
         "FRAMESEARCH_COMPOSE_COMMAND",
-        "docker compose --env-file .env.example -f infra/docker-compose.yml --profile app",
+        "docker compose --env-file .env -f infra/docker-compose.yml --profile app",
     )
     return subprocess.run([*shlex.split(command), *arguments], check=True, **kwargs)
 

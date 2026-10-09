@@ -32,7 +32,11 @@ func TestInfrastructureUploadAndPublication(t *testing.T) {
 	defer cancel()
 	store := integrationStore(t)
 	bucket := "framesearch-test-" + uuid.NewString()
-	storage := newStorage(endpoint, endpoint, env("TEST_S3_ACCESS_KEY", "framesearch"), env("TEST_S3_SECRET_KEY", "framesearch-local-secret"), bucket)
+	accessKey, secretKey := os.Getenv("TEST_S3_ACCESS_KEY"), os.Getenv("TEST_S3_SECRET_KEY")
+	if accessKey == "" || secretKey == "" {
+		t.Fatal("set TEST_S3_ACCESS_KEY and TEST_S3_SECRET_KEY for infrastructure tests")
+	}
+	storage := newStorage(endpoint, endpoint, accessKey, secretKey, bucket)
 	if _, e := storage.internal.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: aws.String(bucket)}); e != nil {
 		t.Fatal(e)
 	}
